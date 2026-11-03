@@ -62,17 +62,13 @@ h1{font-size:24px;font-weight:800;letter-spacing:-.3px;line-height:1.1;backgroun
 .empty{text-align:center;font-size:11.5px;color:var(--mut);margin-top:12px}
 .note{text-align:center;font-size:11px;color:var(--mut);margin-top:18px}
 
-/* daily limit */
-.limit-big{display:flex;align-items:baseline;gap:8px;margin-top:12px}
-.limit-big b{font-size:30px;font-weight:800;letter-spacing:-.6px;line-height:1;color:var(--g);transition:color .4s}
-.limit-big span{font-size:14px;color:var(--mut);font-weight:600}
-.limit-card.warn{border-color:rgba(255,176,32,.4)}
-.limit-card.danger{border-color:rgba(255,77,109,.5);background:linear-gradient(160deg,rgba(255,77,109,.08),rgba(255,255,255,.02))}
-.limit-card.danger .limit-big b{color:var(--r)}
-.limit-card.warn .limit-big b{color:var(--o)}
-.limit-card.danger .bar .w,.limit-card.warn .bar .w{background:currentColor}
-.limit-card.danger #limitPct{color:var(--r)!important}
-.limit-card.warn #limitPct{color:var(--o)!important}
+/* Daily Usage Limit New Style */
+.limit-row { margin-bottom: 12px; }
+.limit-row:last-child { margin-bottom: 0; }
+.limit-row .lbl-row { display:flex; justify-content:space-between; font-size:11.5px; margin-bottom:5px; font-weight:600; color:var(--mut); }
+.limit-row .lbl-row b { color:var(--tx); }
+.bar-mini { height:6px; border-radius:6px; background:rgba(255,255,255,.08); overflow:hidden; }
+.bar-mini i { display:block; height:100%; width:0; transition:width 0.6s var(--ease); border-radius:6px; }
 
 /* ===== TIERS ===== */
 .tiers{display:grid;gap:12px;margin-top:12px}
@@ -277,14 +273,19 @@ iframe.page{padding:0;border:0;width:100%;height:100%;background:transparent}
 
   <div class="sec lb rv" style="animation-delay:.28s">Daily Usage Limit</div>
   <div class="card limit-card rv" id="limitCard" style="animation-delay:.3s">
-    <div style="display:flex;justify-content:space-between;align-items:center">
-      <span class="lb">Signals Used Today</span>
-      <span class="lb" id="limitPct" style="color:var(--g)">0%</span>
-    </div>
-    <div class="limit-big"><b id="limitNow">0</b><span>/ <span id="limitMax">20</span></span></div>
-    <div class="bar" style="margin-top:14px"><i class="w" id="limitBar"></i></div>
-    <div class="leg"><span id="limitUsedTxt">0 used</span><span id="limitLeftTxt">20 left</span></div>
-    <p id="limitMsg" style="font-size:11.5px;color:var(--mut);margin-top:12px;line-height:1.55">Fresh signals reset daily at midnight.</p>
+      <div class="limit-row">
+          <div class="lbl-row"><span style="color:var(--g)">Live Signals</span><span><b id="l-used">0</b> / <span id="l-max">0</span></span></div>
+          <div class="bar-mini"><i id="l-bar" style="background:var(--g)"></i></div>
+      </div>
+      <div class="limit-row">
+          <div class="lbl-row"><span style="color:var(--v)">Future Signals</span><span><b id="f-used">0</b> / <span id="f-max">0</span></span></div>
+          <div class="bar-mini"><i id="f-bar" style="background:var(--v)"></i></div>
+      </div>
+      <div class="limit-row">
+          <div class="lbl-row"><span style="color:var(--o)">Sure Shot Signals</span><span><b id="s-used">0</b> / <span id="s-max">0</span></span></div>
+          <div class="bar-mini"><i id="s-bar" style="background:var(--o)"></i></div>
+      </div>
+      <p id="limitMsg" style="font-size:11.5px;color:var(--mut);margin-top:12px;line-height:1.55">Fresh signals reset daily at midnight.</p>
   </div>
 
   <div class="sec lb rv" style="animation-delay:.35s">Performance</div>
@@ -357,17 +358,12 @@ async function fetchUserData() {
                 const tierLevels = { 'PRO': 1, 'ELITE': 2, 'VIP': 3 };
                 const userLevel = tierLevels[userTier] || 0;
 
-                // Hide current and lower tiers
                 document.querySelectorAll('.tier').forEach(el => {
                     const t = el.getAttribute('data-tier');
                     if (tierLevels[t] && tierLevels[t] <= userLevel) {
                         el.style.display = 'none';
                     }
                 });
-
-                // Update limits using exact Supabase columns
-                const lim = (serverUserData.daily_sure_shot_limit || 0) + (serverUserData.daily_future_limit || 0) + (serverUserData.daily_live_limit || 0);
-                if (lim > 0) serverLimit = lim;
                 
                 updateLimit();
                 render(); 
@@ -378,47 +374,36 @@ async function fetchUserData() {
     }
 }
 
-function getLimit(){return serverLimit;}
-
-function todayTotal(){
-  if(serverUserData) {
-      return (serverUserData.used_sure_shot_today || 0) + (serverUserData.used_future_today || 0) + (serverUserData.used_live_today || 0);
-  }
-  const x = load();
-  return Object.keys(TYPES).reduce((s,t)=>s+getRec(x,"today",t).t,0);
-}
-
 function updateLimit(){
-  const total = todayTotal();
-  const lim = getLimit();
-  const pct = Math.min(100, (total/lim)*100);
-  const reached = total >= lim;
-  
-  const card = document.getElementById("limitCard");
-  if(!card) return;
-  
-  card.classList.remove("warn","danger");
-  if(reached) card.classList.add("danger");
-  else if(total >= lim*.7) card.classList.add("warn");
-  
-  document.getElementById("limitNow").textContent = total;
-  document.getElementById("limitMax").textContent = lim;
-  document.getElementById("limitPct").textContent = Math.round(pct)+"%";
-  
-  const bar = document.getElementById("limitBar");
-  bar.style.width = pct+"%";
-  
-  document.getElementById("limitUsedTxt").textContent = total+" used";
-  document.getElementById("limitLeftTxt").textContent = Math.max(0, lim-total)+" left";
-  
-  const msg = document.getElementById("limitMsg");
-  if(reached){
-    msg.innerHTML='<b style="color:var(--r)">Daily limit reached.</b> Contact admin to increase or wait until midnight.';
-  }else if(total >= lim*.7){
-    msg.innerHTML='<span style="color:var(--o)">Approaching limit.</span> '+Math.max(0, lim-total)+' signals remaining.';
-  }else{
-    msg.textContent="Fresh signals reset daily at midnight.";
-  }
+    if(!serverUserData) return;
+    
+    const lu = serverUserData.used_live_today || 0;
+    const fu = serverUserData.used_future_today || 0;
+    const su = serverUserData.used_sure_shot_today || 0;
+    
+    const lm = serverUserData.daily_live_limit || 20;
+    const fm = serverUserData.daily_future_limit || 20;
+    const sm = serverUserData.daily_sure_shot_limit || 20;
+    
+    document.getElementById('l-used').textContent = lu;
+    document.getElementById('l-max').textContent = lm;
+    document.getElementById('l-bar').style.width = Math.min(100, (lu/lm)*100) + '%';
+    
+    document.getElementById('f-used').textContent = fu;
+    document.getElementById('f-max').textContent = fm;
+    document.getElementById('f-bar').style.width = Math.min(100, (fu/fm)*100) + '%';
+    
+    document.getElementById('s-used').textContent = su;
+    document.getElementById('s-max').textContent = sm;
+    document.getElementById('s-bar').style.width = Math.min(100, (su/sm)*100) + '%';
+    
+    let msg = "Fresh signals reset daily at midnight.";
+    if(lu >= lm || fu >= fm || su >= sm) {
+        msg = '<b style="color:var(--r)">Some daily limits reached.</b>';
+    } else if (lu >= lm*.7 || fu >= fm*.7 || su >= sm*.7) {
+        msg = '<span style="color:var(--o)">Approaching daily limit.</span>';
+    }
+    document.getElementById('limitMsg').innerHTML = msg;
 }
 
 let scope="today",firstRender=true,lastDay=todayKey();
@@ -443,7 +428,31 @@ function render(){
 
   perf.innerHTML="";
   Object.entries(TYPES).forEach(([t,d],i)=>{
-    const r=getRec(x,scope,t),acc=r.t?r.w/r.t*100:0,wp=r.t?r.w/r.t*100:0,lp=r.t?100-wp:0;
+    let r, acc, wp, lp;
+    
+    // === FIX: Live stats read directly from live.html's local storage (statsDB_9) ===
+    if (t === 'live') {
+        let sd = {hist: []};
+        try { sd = JSON.parse(localStorage.getItem('statsDB_9')) || {hist: []}; } catch(e){}
+        const hist = sd.hist || [];
+        const w = hist.filter(x => x === 'WIN').length;
+        const l = hist.filter(x => x === 'LOSS').length;
+        let cur = 0, best = 0;
+        hist.forEach(x => {
+            if(x === 'WIN') { cur++; if(cur > best) best = cur; }
+            else { cur = 0; }
+        });
+        r = { t: hist.length, w: w, l: l, cur: cur, best: best };
+        acc = r.t ? r.w/r.t*100 : 0;
+        wp = r.t ? r.w/r.t*100 : 0;
+        lp = r.t ? 100-wp : 0;
+    } else {
+        r=getRec(x,scope,t);
+        acc=r.t?r.w/r.t*100:0;
+        wp=r.t?r.w/r.t*100:0;
+        lp=r.t?100-wp:0;
+    }
+
     const el=document.createElement("div");el.className="card"+(firstRender?" rv":"");el.style.cssText="--c:"+d.c+(firstRender?";animation-delay:"+(.4+i*.1)+"s":"");
     el.innerHTML=`<div class="ph"><div class="ic"><svg class="i"><use href="#${d.icon}"/></svg></div><div><h3>${d.name}</h3><small>${d.sub}</small></div>
     <div class="ring"><svg viewBox="0 0 70 70"><circle class="bg" cx="35" cy="35" r="30"/><circle class="fg" cx="35" cy="35" r="30" data-p="${acc}"/></svg><div>${acc.toFixed(0)}<small>%</small></div></div></div>
@@ -480,7 +489,7 @@ setInterval(()=>{
 
 render();
 fetchUserData();
-setInterval(fetchUserData, 10000); 
+setInterval(fetchUserData, 3000); // Auto updates every 3 seconds now
 
 try{if(!localStorage.getItem("uwb_uid"))location.replace("login.html");}catch(e){}
 
@@ -568,7 +577,4 @@ function openAdmin(b){
 function closeAdmin(){adminPop.classList.remove("show");}
 adminPop.onclick=e=>{if(e.target===adminPop)closeAdmin();};
 document.querySelectorAll(".acc-btn").forEach(b=>b.onclick=()=>openAdmin(b));
-
-// ===== BACKGROUND TRACKER REMOVED =====
-// (Live signal tracking will now only happen inside live.html as requested)
 </script></body></html>

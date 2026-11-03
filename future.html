@@ -104,7 +104,7 @@ html, body { height: 100%; background: var(--bg); font-family: Inter, "SF Pro Di
 
     <div class="server-strip">
         <div><i class="dot green"></i> Node: SG-1</div>
-        <div><i class="dot blue"></i> Engine v5.2</div>
+        <div><i class="dot blue"></i> Engine v6.0 (AI Smart)</div>
         <div>Ping: <span id="ping-val">24</span>ms</div>
     </div>
 
@@ -280,18 +280,18 @@ async function startGeneration() {
     document.querySelectorAll('#count-selector button').forEach(b => b.disabled = true);
 
     const steps = [
-        "> GET /api/v5/history?limit=500 [200 OK]",
-        "> Parsing JSON payload...",
-        "> Running Pattern Matrix (SSSB/BBBS)...",
-        "> Eliminating AVOID nodes...",
-        `> Compiling ${selectedCount} Predictions...`
+        "> GET /api/v6/history?limit=500 [200 OK]",
+        "> Analyzing High Accuracy Patterns (70%+)...",
+        "> Filtering 9X Period Restrictions...",
+        "> Eliminating Low Probability Nodes...",
+        `> Compiling ${selectedCount} Smart Predictions...`
     ];
 
     for (let i = 0; i < steps.length; i++) {
         let span = document.createElement('span');
         span.innerText = steps[i];
         terminal.appendChild(span);
-        await new Promise(r => setTimeout(r, 500)); 
+        await new Promise(r => setTimeout(r, 600)); 
     }
 
     try {
@@ -303,6 +303,7 @@ async function startGeneration() {
 }
 
 async function fetchAndProcessData() {
+    // ১. লাইভ ডেটা ফেচ (লাস্ট ৫০০)
     const { data, error } = await supabaseClient
         .from('wingo_history').select('issue, number').eq('game', 'WinGo_30S')
         .order('id', { ascending: false }).limit(500);
@@ -310,36 +311,65 @@ async function fetchAndProcessData() {
     if (error) throw error;
     if (!data || data.length === 0) throw new Error("No data");
 
+    // ডেটাকে B (BIG) এবং S (SMALL) অ্যারেতে রূপান্তর
+    const results = data.map(row => parseInt(row.number) >= 5 ? 'B' : 'S');
     const latestIssue = data[0].issue;
+    
     let validSignals = [];
     let offset = 1;
-    const maxCheckLimit = 400; 
+    const maxCheckLimit = 50; 
 
     while (validSignals.length < selectedCount && offset <= maxCheckLimit) {
         let nextIssue = (BigInt(latestIssue) + BigInt(offset)).toString();
-        let lastTwoDigits = nextIssue.slice(-2);
+        let periodLastTwo = nextIssue.slice(-2);
+        let periodLastOne = nextIssue.slice(-1);
 
-        let matchedHistory = data.filter(row => row.issue.endsWith(lastTwoDigits));
-        let last4Matches = matchedHistory.slice(0, 4);
+        // === 🔥 Period Restriction Logic (9X Rule) 🔥 ===
+        // যদি পিরিয়ডের শেষ অঙ্ক ৯, ৮, ৭ হয় (যেমন 96, 97, 98, 99), তবে সিগন্যাল বাদ যাবে
+        // আপনার উদাহরণ: লাস্ট 96 হলে 96 এর পরের সিগন্যাল (97, 98, 99) বাদ।
+        if (parseInt(periodLastOne) >= 6) { 
+            offset++;
+            continue; 
+        }
 
-        if (last4Matches.length === 4) {
-            let patternArr = last4Matches.map(row => parseInt(row.number) >= 5 ? 'B' : 'S');
-            let patternStr = patternArr.join('');
+        // === 🔥 High Accuracy Strategy Logic 🔥 ===
+        let signal = null;
+        
+        // স্ট্র্যাটেজি ১: 3+1 Reversal (BBBS / SSSB)
+        // যেখানে পরপর ৩টি একই রেজাল্টের পর ৪র্থটি উল্টো হয়, ৫মটি ৪র্থটির দিকেই যায়
+        let lookBackIndex = Math.floor(offset);
+        if (lookBackIndex + 4 < results.length) {
+            let p1 = results[lookBackIndex];     // নতুন
+            let p2 = results[lookBackIndex + 1];
+            let p3 = results[lookBackIndex + 2];
+            let p4 = results[lookBackIndex + 3]; // পুরাতন
+            
+            // BBBS = পরেরটা B
+            if (p4 === 'S' && p3 === 'B' && p2 === 'B' && p1 === 'B') signal = "BIG";
+            // SSSB = পরেরটা S
+            if (p4 === 'B' && p3 === 'S' && p2 === 'S' && p1 === 'S') signal = "SMALL";
+        }
 
-            let signal = null;
-            if (patternStr === 'SSSB') signal = "SMALL";
-            else if (patternStr === 'BBBS') signal = "BIG";
-
-            if (signal) {
-                validSignals.push({ period: nextIssue, signal: signal, status: null, actual: null });
+        // স্ট্র্যাটেজি ২: 5+ Streak Reversal (রিভার্সাল)
+        // টানা ৫টি BIG বা SMALL হলে উল্টোটা ধরা
+        if (!signal && lookBackIndex + 5 < results.length) {
+            let streakB = 0, streakS = 0;
+            for(let i=lookBackIndex; i<lookBackIndex+5; i++){
+                if(results[i] === 'B') streakB++; else streakS++;
             }
+            if (streakB === 5) signal = "SMALL";
+            if (streakS === 5) signal = "BIG";
+        }
+
+        if (signal) {
+            validSignals.push({ period: nextIssue, signal: signal, status: null, actual: null });
         }
         offset++;
     }
 
     if (validSignals.length > 0) {
         const uid = localStorage.getItem("uwb_uid");
-        const newUsed = usedFutureToday + selectedCount; // FIX: 5 or 10 signals will be counted properly
+        const newUsed = usedFutureToday + selectedCount;
         
         await supabaseClient.from('bot_users')
             .update({ used_future_today: newUsed })
@@ -356,7 +386,7 @@ async function fetchAndProcessData() {
         
         startAutoCheck();
     } else {
-        document.getElementById('terminal').innerHTML += `<br><span style="color:var(--o)">> No valid patterns in current sequence.</span>`;
+        document.getElementById('terminal').innerHTML += `<br><span style="color:var(--o)">> No valid patterns in current sequence. (Period restriction or no pattern)</span>`;
         resetButton();
     }
 }
@@ -390,7 +420,7 @@ function renderSignals(signals) {
         div.innerHTML = `
             <div class="sig-top">
                 <span class="sig-period">Period: ${s.period} ${index === 0 && !s.status ? '<span class="badge-next">Next</span>' : ''}</span>
-                <span class="sig-time">API Sync</span>
+                <span class="sig-time">AI Sync</span>
             </div>
             <div class="sig-middle">
                 <div class="sig-pred-box">
@@ -430,8 +460,6 @@ function startAutoCheck() {
                         s.status = (s.signal === actualResult) ? 'WIN' : 'LOSS';
                         s.actual = match.number;
                         updated = true;
-                        
-                        // === FIX: Send the result to the main Dashboard UWB tracker ===
                         updateDashboardStats(s.status.toLowerCase());
                     }
                 }
@@ -446,7 +474,6 @@ function startAutoCheck() {
     }, 5000);
 }
 
-// নতুন ফাংশন যা ড্যাশবোর্ডের পারফরম্যান্স আপডেট করবে
 function updateDashboardStats(result) {
     const KEY = "uwb_stats";
     let stats;

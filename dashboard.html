@@ -306,7 +306,7 @@ iframe.page{padding:0;border:0;width:100%;height:100%;background:transparent}
 const SUPABASE_URL = "https://jnhpnsfdnckkpnyrmpkc.supabase.co";
 const SUPABASE_KEY = "sb_publishable_t52nYcH5sW43P48ZSUE4eg_GWwyg_ma";
 
-// ===== RECORDS (local stats for Win/Loss tracking) =====
+// ===== RECORDS (local stats) =====
 const KEY="uwb_stats";
 const TYPES={
  live:{name:"Live Signal",sub:"Real-time round signals",icon:"live",c:"#22e39b"},
@@ -339,7 +339,7 @@ window.UWB={
 // ===== SERVER DATA / LIMIT =====
 let serverLimit=20;
 let userTier=null;
-let serverUserData = null; // Supabase theke asha data store korar jonno
+let serverUserData = null;
 
 async function fetchUserData() {
     const uid = localStorage.getItem("uwb_uid");
@@ -370,7 +370,7 @@ async function fetchUserData() {
                 if (lim > 0) serverLimit = lim;
                 
                 updateLimit();
-                render(); // Re-render stats to show latest used counts
+                render(); 
             }
         }
     } catch (e) {
@@ -384,7 +384,6 @@ function todayTotal(){
   if(serverUserData) {
       return (serverUserData.used_sure_shot_today || 0) + (serverUserData.used_future_today || 0) + (serverUserData.used_live_today || 0);
   }
-  // Fallback to local if server data isn't loaded yet
   const x = load();
   return Object.keys(TYPES).reduce((s,t)=>s+getRec(x,"today",t).t,0);
 }
@@ -431,13 +430,11 @@ function render(){
   const x = load();
   lastSig = JSON.stringify(x)+scope+todayKey();
   
-  // Update Top counters (Live, Future, Sure Shot)
   if(serverUserData) {
       document.querySelector('[data-n="live"]').textContent = serverUserData.used_live_today || 0;
       document.querySelector('[data-n="future"]').textContent = serverUserData.used_future_today || 0;
       document.querySelector('[data-n="sure"]').textContent = serverUserData.used_sure_shot_today || 0;
   } else {
-      // Fallback to local if server data is not ready
       Object.keys(TYPES).forEach(t=>{
           const el=document.querySelector('[data-n="'+t+'"]');
           if(el) el.textContent=fmt(getRec(x,"today",t).t);
@@ -446,7 +443,6 @@ function render(){
 
   perf.innerHTML="";
   Object.entries(TYPES).forEach(([t,d],i)=>{
-    // Performance (Win/Loss) still relies on local storage since Supabase doesn't track win/loss history
     const r=getRec(x,scope,t),acc=r.t?r.w/r.t*100:0,wp=r.t?r.w/r.t*100:0,lp=r.t?100-wp:0;
     const el=document.createElement("div");el.className="card"+(firstRender?" rv":"");el.style.cssText="--c:"+d.c+(firstRender?";animation-delay:"+(.4+i*.1)+"s":"");
     el.innerHTML=`<div class="ph"><div class="ic"><svg class="i"><use href="#${d.icon}"/></svg></div><div><h3>${d.name}</h3><small>${d.sub}</small></div>
@@ -483,16 +479,15 @@ setInterval(()=>{
 },2000);
 
 render();
-fetchUserData(); // Initial Call
-setInterval(fetchUserData, 10000); // Auto-refresh server limits every 10 seconds
+fetchUserData();
+setInterval(fetchUserData, 10000); 
 
-// Must come from login first
 try{if(!localStorage.getItem("uwb_uid"))location.replace("login.html");}catch(e){}
 
 // ===== TABS =====
 const PAGES={
   sureshot:{title:"Sure Shot Signal",file:"sureshot.html",ready:false},
-  future:{title:"Future Signal",file:"future.html",ready:true}, // <--- Updated to TRUE
+  future:{title:"Future Signal",file:"future.html",ready:true}, 
   live:{title:"Live Signal",file:"live.html",ready:true},
   profile:{title:"Profile",file:"profile.html",ready:true}
 };
@@ -574,30 +569,6 @@ function closeAdmin(){adminPop.classList.remove("show");}
 adminPop.onclick=e=>{if(e.target===adminPop)closeAdmin();};
 document.querySelectorAll(".acc-btn").forEach(b=>b.onclick=()=>openAdmin(b));
 
-// ===== BACKGROUND TRACKER =====
-const TRK={
- 30:{src:"livepredection.html",api:"https://draw.ar-lottery01.com/WinGo/WinGo_30S/GetHistoryIssuePage.json",sig:"global_live_signal",per:"global_live_period"},
- 60:{src:"livepredection_1m.html",api:"https://draw.ar-lottery01.com/WinGo/WinGo_1M/GetHistoryIssuePage.json",sig:"global_live_signal_1m",per:"global_live_period_1m"}
-};
-const eng=document.createElement("iframe");eng.style.cssText="display:none";eng.title="engine";document.body.appendChild(eng);
-let trkMode=null,trkBusy=false,trkAgain=false;
-async function track(){
-  if(trkBusy){trkAgain=true;return;}trkBusy=true;
-  try{
-    const m=localStorage.getItem("uwb_mode")||"30",c=TRK[m]||TRK[30];
-    if(trkMode!==m){trkMode=m;eng.src=c.src;}
-    const j=await (await fetch(c.api+"?t="+Date.now())).json();
-    const hs=j.data.list.slice(0,10).map(x=>({p:String(x.issueNumber),n:parseInt(x.number)}));
-    if(!hs.length)return;
-    const lk="uwb_trk_"+m;let log={};try{log=JSON.parse(localStorage.getItem(lk)||"{}")||{};}catch(e){}
-    const np=(BigInt(hs[0].p)+1n).toString(),sig=localStorage.getItem(c.sig),per=localStorage.getItem(c.per);
-    if((sig==="BIG"||sig==="SMALL")&&per===np&&!log[np]){log[np]={s:sig};toast(sig,np);}
-    hs.forEach(h=>{const e=log[h.p];if(e&&!e.r){e.r=(e.s===(h.n>=5?"BIG":"SMALL"))?"win":"loss";UWB.record("live",e.r);queuePop({r:e.r,s:e.s,p:h.p,n:h.n});}});
-    Object.keys(log).sort().slice(0,-80).forEach(k=>delete log[k]);
-    localStorage.setItem(lk,JSON.stringify(log));
-  }catch(e){}
-  trkBusy=false;if(trkAgain){trkAgain=false;setTimeout(track,150);}
-}
-addEventListener("storage",e=>{if(e.key&&/global_live_|statsDB_9|pastPred_9/.test(e.key))track();});
-setInterval(track,1500);track();
+// ===== BACKGROUND TRACKER REMOVED =====
+// (Live signal tracking will now only happen inside live.html as requested)
 </script></body></html>

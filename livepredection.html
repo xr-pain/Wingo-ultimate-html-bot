@@ -1,0 +1,716 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>XR MACRO - MAIN PREDICTOR</title>
+
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;700&display=swap" rel="stylesheet">
+
+<style>
+*{box-sizing:border-box}
+
+body{
+ background:#0f0f0f;
+ font-family:'Outfit',sans-serif;
+ color:white;
+ padding:12px;
+ margin:0;
+ overflow-x:hidden;
+}
+
+.header{
+ font-size:22px;
+ font-weight:700;
+ text-align:center;
+ color:#00ffc8;
+ margin-bottom:12px;
+}
+
+.main-card{
+ background:#1a1a2e;
+ border:2px solid #00ffe0;
+ box-shadow:0 0 15px #00ffe033;
+ border-radius:14px;
+ padding:16px;
+ text-align:center;
+}
+
+.pred-label{font-size:12px;color:#aaa;letter-spacing:1px;font-weight:700}
+.pred-value{font-size:55px;font-weight:700;margin:5px 0}
+.val-big{color:#00ff88}
+.val-small{color:#ff4c4c}
+.val-waiting{color:#ffd700;font-size:35px}
+
+.pred-period{
+ font-size:15px;background:#333;
+ padding:6px 12px;border-radius:8px;
+ display:inline-block;margin-bottom:10px;
+}
+
+.last-result-box{
+ background:#111;border:1px solid #444;
+ border-radius:8px;padding:10px;margin-top:10px;
+}
+
+.last-res-label{font-size:11px;color:#888}
+.last-res-text{font-size:15px;font-weight:700;margin-top:5px}
+.res-win{color:#00ff88}
+.res-loss{color:#ff4c4c}
+.res-wait{color:#aaa}
+
+.bot-info{margin-top:12px;font-size:12px;color:#66ccff;font-weight:700}
+.bot-sub{font-size:11px;color:#ffd700}
+.mode-info{margin-top:8px;font-size:13px;font-weight:700}
+
+.timer-card{
+ background:#151515;border:1px solid #00ffcc33;
+ border-radius:12px;padding:10px;text-align:center;margin:12px 0;
+}
+
+.timer-period{font-size:13px;color:#00ffd0}
+.timer-text{font-size:32px;font-weight:700;color:#ffd700;font-variant-numeric:tabular-nums}
+.live-time{font-size:12px;color:#66ccff}
+
+#status{text-align:center;font-size:12px;opacity:.8;margin:8px 0;min-height:16px}
+
+table{width:100%;border-collapse:collapse;table-layout:fixed}
+th{background:#242424;color:#ffd700;padding:8px 2px;font-size:11px}
+td{padding:8px 2px;font-size:11px;text-align:center;border-bottom:1px solid #333;font-weight:700}
+
+.num-red{color:#ff4c4c}
+.num-green{color:#00ff88}
+.num-violet{color:#bb66ff}
+.win{color:#00ff88}
+.loss{color:#ff4c4c}
+.match{color:#66ccff}
+
+.latest-row{background:#002244;color:#66ccff}
+
+.dash-card{
+ background:#1a1a1a;border:1px solid #ffd700;
+ border-radius:10px;padding:12px;margin-top:12px;font-size:13px;
+}
+
+.dash-title{text-align:center;color:#ffd700;font-size:15px;font-weight:700;margin-bottom:10px}
+.dash-stat{display:flex;justify-content:space-between;margin-bottom:6px}
+.history-str{font-size:12px;color:#aaa;text-align:center;margin-top:8px}
+
+.reset-btn{
+ width:100%;background:#ff3333;color:white;border:0;
+ padding:12px;font-size:16px;font-weight:700;
+ border-radius:8px;margin-top:20px;
+}
+</style>
+</head>
+
+<body>
+
+<div class="header"> XR MACRO - MAIN PREDICTOR</div>
+
+<div class="main-card">
+ <div class="pred-label">PREDICTION</div>
+
+ <div id="livePrediction" class="pred-value val-waiting">
+ WAITING...
+ </div>
+
+ <div id="predPeriod" class="pred-period">Next Period: --</div>
+
+ <div class="last-result-box">
+  <div class="last-res-label">LAST PREDICTION RESULT</div>
+  <div id="lastResultText" class="last-res-text res-wait">
+   Waiting for new round...
+  </div>
+ </div>
+
+ <div class="bot-info" id="botName">Scanning bots...</div>
+ <div class="bot-sub" id="matchStats">Checking history...</div>
+ <div class="mode-info" id="recoveryDisplay">MODE: NORMAL</div>
+</div>
+
+<div class="timer-card">
+ <div id="currentPeriod" class="timer-period">Current Period: Loading...</div>
+ <div id="countdown" class="timer-text">00:30</div>
+ <div id="liveTime" class="live-time">--:--:--</div>
+</div>
+
+<div id="status">System started...</div>
+
+<table>
+<thead>
+<tr>
+ <th>Period</th>
+ <th>No</th>
+ <th>Size</th>
+ <th>Pred</th>
+ <th>Result</th>
+</tr>
+</thead>
+<tbody id="resultBody">
+<tr><td colspan="5">Loading...</td></tr>
+</tbody>
+</table>
+
+<div class="dash-card" id="dashboard"></div>
+
+<button class="reset-btn" onclick="resetData()">
+  RESET FULL DATA
+</button>
+
+<script>
+"use strict";
+
+/* ================= CONFIG ================= */
+
+const HISTORY_API =
+"https://draw.ar-lottery01.com/WinGo/WinGo_30S/GetHistoryIssuePage.json";
+
+const BOT_API =
+"https://five00random-api-data.onrender.com/api/all";
+
+const MAX_HISTORY = 20;
+const FETCH_INTERVAL = 3000;
+
+const KEYS = {
+ MASTER: "xr_macro_master_v10",
+ STATS: "statsDB_9",
+ MODE: "recoveryMode",
+ PRED: "pastPred_9",
+ EVALUATED: "lastEvaluatedPeriod",
+ SIGNAL: "global_live_signal",
+ PERIOD: "global_live_period"
+};
+
+let isFetching = false;
+let currentActivePeriod = null;
+
+/* ================= STORAGE ================= */
+
+function readJSON(key, fallback) {
+ try {
+  const value = localStorage.getItem(key);
+  return value === null ? fallback : JSON.parse(value);
+ } catch {
+  return fallback;
+ }
+}
+
+function saveJSON(key, value) {
+ try {
+  localStorage.setItem(key, JSON.stringify(value));
+  return true;
+ } catch(error) {
+  console.error("Storage error:", error);
+  setStatus("Storage error!");
+  return false;
+ }
+}
+
+function saveText(key, value) {
+ try {
+  localStorage.setItem(key, String(value));
+  return true;
+ } catch(error) {
+  console.error(error);
+  return false;
+ }
+}
+
+let statsDB = readJSON(KEYS.STATS, {hist:[]});
+
+if (!statsDB || !Array.isArray(statsDB.hist)) {
+ statsDB = {hist:[]};
+}
+
+let recoveryMode =
+localStorage.getItem(KEYS.MODE) || "NORMAL";
+
+let pastPrediction = readJSON(KEYS.PRED, null);
+
+/* Restore the last period after refresh */
+currentActivePeriod =
+localStorage.getItem("xr_last_processed_period") || null;
+
+/* ================= MASTER SIGNAL ================= */
+
+function publishSignal(signal, period, extra = {}) {
+
+ const previous = readJSON(KEYS.MASTER, {});
+
+ const record = {
+  signal,
+  period: String(period),
+  timestamp: Date.now(),
+  source: "XR_MACRO",
+  ...extra
+ };
+
+ // One master object is the authoritative record.
+ if (!saveJSON(KEYS.MASTER, record)) return false;
+
+ // Compatibility keys for other HTML files.
+ saveText(KEYS.SIGNAL, signal);
+ saveText(KEYS.PERIOD, period);
+
+ return true;
+}
+
+function getSharedSignal() {
+ return readJSON(KEYS.MASTER, {
+  signal: localStorage.getItem(KEYS.SIGNAL) || "WAITING",
+  period: localStorage.getItem(KEYS.PERIOD) || "--"
+ });
+}
+
+/* Sync other tabs when storage changes */
+window.addEventListener("storage", function(event) {
+
+ if (
+  event.key === KEYS.MASTER ||
+  event.key === KEYS.SIGNAL ||
+  event.key === KEYS.PERIOD
+ ) {
+  const shared = getSharedSignal();
+
+  if (shared && shared.signal && shared.period) {
+   displayPrediction(shared.signal, shared.period);
+  }
+ }
+});
+
+/* ================= HELPERS ================= */
+
+function setStatus(message) {
+ document.getElementById("status").textContent = message;
+}
+
+function getNextPeriod(period) {
+ try {
+  return (BigInt(period) + 1n).toString();
+ } catch {
+  return String(Number(period) + 1);
+ }
+}
+
+function numColor(n) {
+ if ([1,3,7,9].includes(n)) return "num-green";
+ if ([2,4,6,8].includes(n)) return "num-red";
+ if ([0,5].includes(n)) return "num-violet";
+ return "";
+}
+
+function displayPrediction(signal, period) {
+
+ const pred = document.getElementById("livePrediction");
+
+ pred.textContent = signal;
+ pred.className = "pred-value " +
+  (signal === "BIG" ? "val-big" :
+   signal === "SMALL" ? "val-small" : "val-waiting");
+
+ document.getElementById("predPeriod").textContent =
+  "Next Period: " + period;
+}
+
+function updateModeUI() {
+
+ const el = document.getElementById("recoveryDisplay");
+
+ el.textContent = "MODE: " + recoveryMode;
+
+ el.style.color =
+  recoveryMode === "OPPOSITE" ? "#ffd700" : "#00ff88";
+}
+
+/* ================= RECOVERY ================= */
+
+function updateRecoveryMode(isWin) {
+
+ if (recoveryMode === "NORMAL") {
+  if (!isWin) recoveryMode = "OPPOSITE";
+ } else if (recoveryMode === "OPPOSITE") {
+  if (!isWin) recoveryMode = "NORMAL";
+ }
+
+ saveText(KEYS.MODE, recoveryMode);
+ updateModeUI();
+}
+
+/* ================= DASHBOARD ================= */
+
+function getB2B(arr, type) {
+
+ let max = 0;
+ let current = 0;
+
+ for (const item of arr) {
+  if (item === type) {
+   current++;
+   max = Math.max(max, current);
+  } else {
+   current = 0;
+  }
+ }
+
+ return max;
+}
+
+function renderDashboard() {
+
+ const data = statsDB.hist || [];
+
+ const wins = data.filter(x => x === "WIN").length;
+ const losses = data.filter(x => x === "LOSS").length;
+
+ const history = data.slice(-10)
+  .map(x => x === "WIN" ? "W" : "L")
+  .join("-") || "-";
+
+ document.getElementById("dashboard").innerHTML = `
+ <div class="dash-title">9 MATCH SYSTEM DASHBOARD</div>
+ <div class="dash-stat"><span>TOTAL PREDICTIONS:</span><b>${data.length}</b></div>
+ <div class="dash-stat"><span>WIN:</span><b class="win">${wins}</b></div>
+ <div class="dash-stat"><span>LOSS:</span><b class="loss">${losses}</b></div>
+ <div class="dash-stat"><span>B2B WIN:</span><b class="win">${getB2B(data,"WIN")}</b></div>
+ <div class="dash-stat"><span>B2B LOSS:</span><b class="loss">${getB2B(data,"LOSS")}</b></div>
+ <div class="history-str">${history}</div>
+ `;
+}
+
+/* ================= BOT MATCH ================= */
+
+function getBotForMatch(bots, historyList) {
+
+ if (!Array.isArray(bots) || historyList.length < 10) return null;
+
+ for (const bot of bots) {
+
+  if (!Array.isArray(bot.signals) || bot.signals.length < 10) continue;
+
+  const signals = [...bot.signals].sort(
+   (a,b) => Number(a.ago_seconds) - Number(b.ago_seconds)
+  );
+
+  let matched = true;
+
+  for (let i = 1; i <= 9; i++) {
+
+   const number = Number(historyList[i-1].number);
+
+   const actualSize = number >= 5 ? "BIG" : "SMALL";
+
+   if (signals[i]?.prediction !== actualSize) {
+    matched = false;
+    break;
+   }
+  }
+
+  if (matched && ["BIG","SMALL"].includes(signals[0]?.prediction)) {
+   return {
+    bot,
+    mainSignal: signals[0].prediction
+   };
+  }
+ }
+
+ return null;
+}
+
+/* ================= EVALUATE ================= */
+
+function evaluatePrediction(latestPeriod, actualSize) {
+
+ if (!pastPrediction) return null;
+
+ if (String(pastPrediction.period) !== String(latestPeriod)) {
+  return null;
+ }
+
+ const evaluated = localStorage.getItem(KEYS.EVALUATED);
+
+ if (evaluated === String(latestPeriod)) {
+  return null;
+ }
+
+ const isWin = pastPrediction.finalSignal === actualSize;
+ const result = isWin ? "WIN" : "LOSS";
+
+ // Mark the period before changing statistics to avoid repeated evaluation.
+ saveText(KEYS.EVALUATED, latestPeriod);
+
+ statsDB.hist.push(result);
+
+ if (statsDB.hist.length > MAX_HISTORY) {
+  statsDB.hist.shift();
+ }
+
+ updateRecoveryMode(isWin);
+
+ saveJSON(KEYS.STATS, statsDB);
+
+ document.getElementById("lastResultText").innerHTML =
+  `Period: ${latestPeriod}<br>
+   Predicted: ${pastPrediction.finalSignal}<br>
+   <span class="${isWin ? "res-win" : "res-loss"}">
+   Result: ${result}</span>`;
+
+ pastPrediction = null;
+
+ localStorage.removeItem(KEYS.PRED);
+
+ renderDashboard();
+
+ return result;
+}
+
+/* ================= HISTORY TABLE ================= */
+
+function renderHistory(historyList) {
+
+ const tbody = document.getElementById("resultBody");
+ tbody.innerHTML = "";
+
+ historyList.forEach((item, index) => {
+
+  const num = Number(item.number);
+  const size = num >= 5 ? "BIG" : "SMALL";
+
+  const row = document.createElement("tr");
+
+  if (index === 0) row.className = "latest-row";
+
+  const values = [
+   String(item.issueNumber).slice(-4),
+   num,
+   size,
+   "-",
+   "-"
+  ];
+
+  values.forEach((value, i) => {
+
+   const td = document.createElement("td");
+   td.textContent = value;
+
+   if (i === 1) td.className = numColor(num);
+
+   row.appendChild(td);
+  });
+
+  tbody.appendChild(row);
+ });
+}
+
+/* ================= MAIN FETCH ================= */
+
+async function autoFetchAndUpdate() {
+
+ if (isFetching) return;
+
+ isFetching = true;
+
+ try {
+
+  setStatus("Checking new data...");
+
+  const response = await fetch(
+   HISTORY_API + "?t=" + Date.now(),
+   {cache:"no-store"}
+  );
+
+  if (!response.ok) throw new Error("History API error");
+
+  const hData = await response.json();
+
+  const historyList = hData?.data?.list;
+
+  if (!Array.isArray(historyList) || historyList.length < 10) {
+   throw new Error("Insufficient history");
+  }
+
+  const latestPeriod = String(historyList[0].issueNumber);
+  const latestNum = Number(historyList[0].number);
+
+  if (
+   !Number.isInteger(latestNum) ||
+   latestNum < 0 || latestNum > 9
+  ) {
+   throw new Error("Invalid result number");
+  }
+
+  const actualSize = latestNum >= 5 ? "BIG" : "SMALL";
+
+  // Same period: no duplicate processing.
+  if (latestPeriod === currentActivePeriod) {
+   setStatus("Waiting for new round...");
+   return;
+  }
+
+  currentActivePeriod = latestPeriod;
+
+  saveText("xr_last_processed_period", latestPeriod);
+
+  document.getElementById("currentPeriod").textContent =
+   "Current Period: " + latestPeriod;
+
+  // Evaluate the previous prediction first.
+  evaluatePrediction(latestPeriod, actualSize);
+
+  renderHistory(historyList);
+
+  // Fetch bots.
+  const botResponse = await fetch(BOT_API, {cache:"no-store"});
+
+  if (!botResponse.ok) throw new Error("Bot API error");
+
+  const bots = await botResponse.json();
+
+  const matchData = getBotForMatch(bots, historyList);
+
+  const nextPeriod = getNextPeriod(latestPeriod);
+
+  if (matchData) {
+
+   const mainSignal = matchData.mainSignal;
+
+   let finalSignal = mainSignal;
+
+   if (recoveryMode === "OPPOSITE") {
+    finalSignal = mainSignal === "BIG" ? "SMALL" : "BIG";
+   }
+
+   // Duplicate protection.
+   const existing = readJSON(KEYS.PRED, null);
+
+   if (existing && String(existing.period) === nextPeriod) {
+    pastPrediction = existing;
+    displayPrediction(existing.finalSignal, nextPeriod);
+    setStatus("Existing prediction restored.");
+   } else {
+
+    const newPrediction = {
+     period: nextPeriod,
+     finalSignal,
+     mainSignal,
+     mode: recoveryMode,
+     timestamp: Date.now()
+    };
+
+    // Save prediction before displaying it.
+    if (!saveJSON(KEYS.PRED, newPrediction)) {
+     throw new Error("Could not save prediction");
+    }
+
+    pastPrediction = newPrediction;
+
+    // Publish the master signal immediately.
+    if (!publishSignal(finalSignal, nextPeriod, {
+     mainSignal,
+     mode: recoveryMode
+    })) {
+     throw new Error("Could not publish signal");
+    }
+
+    displayPrediction(finalSignal, nextPeriod);
+
+    document.getElementById("botName").textContent =
+     "Bot: " + (matchData.bot.signal || "Matched Bot");
+
+    document.getElementById("matchStats").textContent =
+     "9/9 Match | Main: " + mainSignal;
+
+    setStatus("Signal saved and published.");
+   }
+
+  } else {
+
+   // Do not delete an existing pending prediction.
+   // A missing match is not a LOSS.
+   const existing = readJSON(KEYS.PRED, null);
+
+   if (!existing || String(existing.period) !== nextPeriod) {
+    publishSignal("WAITING", nextPeriod);
+    displayPrediction("WAITING", nextPeriod);
+   }
+
+   document.getElementById("botName").textContent =
+    "No Perfect Match";
+
+   document.getElementById("matchStats").textContent =
+    "No 9/9 match found";
+
+   setStatus("No match found.");
+  }
+
+  updateModeUI();
+  renderDashboard();
+
+ } catch(error) {
+
+  console.error(error);
+  setStatus("API error. Retrying next cycle...");
+
+ } finally {
+  isFetching = false;
+ }
+}
+
+/* ================= RESET ================= */
+
+function resetData() {
+
+ if (!confirm("Reset XR MACRO data?")) return;
+
+ Object.values(KEYS).forEach(key => localStorage.removeItem(key));
+
+ localStorage.removeItem("xr_last_processed_period");
+
+ currentActivePeriod = null;
+ pastPrediction = null;
+ statsDB = {hist:[]};
+ recoveryMode = "NORMAL";
+
+ location.reload();
+}
+
+/* ================= TIMER ================= */
+
+function updateTimer() {
+
+ const now = new Date();
+
+ document.getElementById("liveTime").textContent =
+  "Live Time: " + now.toLocaleTimeString("en-GB", {hour12:false});
+
+ const secLeft = 30 - (now.getSeconds() % 30);
+
+ const countdown = document.getElementById("countdown");
+
+ countdown.textContent = "00:" + String(secLeft).padStart(2,"0");
+
+ countdown.style.color =
+  secLeft <= 5 ? "#ff4c4c" : "#ffd700";
+}
+
+/* ================= START ================= */
+
+renderDashboard();
+updateModeUI();
+updateTimer();
+
+const initialSignal = getSharedSignal();
+
+if (initialSignal.signal && initialSignal.period) {
+ displayPrediction(initialSignal.signal, initialSignal.period);
+}
+
+setInterval(updateTimer, 1000);
+setInterval(autoFetchAndUpdate, FETCH_INTERVAL);
+
+autoFetchAndUpdate();
+
+</script>
+</body>
+</html>

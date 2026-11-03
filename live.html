@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="en"><head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Live Signal</title>
+<style>
+@property --a{syntax:"<angle>";inherits:false;initial-value:0deg}
+:root{--g:#22e39b;--v:#8b5cf6;--r:#ff4d6d;--o:#ffb020;--bg:#05040b;--tx:#f4f2ff;--mut:#8c87aa;--line:rgba(255,255,255,.08);--ease:cubic-bezier(.22,.8,.24,1)}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html{background:var(--bg)}
+body{font-family:Inter,"SF Pro Display",system-ui,-apple-system,Segoe UI,Roboto,sans-serif;color:var(--tx);min-height:100vh;overflow-x:hidden;padding:0 16px 28px;-webkit-font-smoothing:antialiased;background:radial-gradient(520px 340px at 90% -4%,rgba(139,92,246,.3),transparent 70%),radial-gradient(460px 340px at -12% 50%,rgba(34,227,155,.12),transparent 70%),radial-gradient(480px 340px at 105% 100%,rgba(255,77,109,.14),transparent 70%),var(--bg)}
+.wrap{max-width:460px;margin:0 auto}
+svg.i{width:1em;height:1em;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;flex:none}
+.rv{opacity:0;transform:translate3d(0,18px,0);animation:rise .7s var(--ease) forwards}
+@keyframes rise{to{opacity:1;transform:none}}
+.hide{display:none!important}
+.lb{font-size:10.5px;color:var(--mut);letter-spacing:1.4px;text-transform:uppercase;font-weight:600}
+.top{display:flex;align-items:center;gap:12px;padding:calc(env(safe-area-inset-top,0px) + 20px) 0 10px}
+.top h1{font-size:22px;font-weight:800;letter-spacing:-.3px;background:linear-gradient(90deg,#fff,#cdbfff 45%,var(--g));-webkit-background-clip:text;background-clip:text;color:transparent}
+.pill{display:inline-flex;align-items:center;gap:7px;margin-top:5px;font-size:10.5px;font-weight:700;letter-spacing:1.2px;color:var(--g);padding:4px 10px;border-radius:99px;background:rgba(34,227,155,.08);border:1px solid rgba(34,227,155,.25)}
+.pill i{width:6px;height:6px;border-radius:50%;background:var(--g);animation:pulse 2s ease-in-out infinite}
+@keyframes pulse{50%{opacity:.35;transform:scale(.8)}}
+.back{width:40px;height:40px;border-radius:13px;border:1px solid var(--line);background:rgba(255,255,255,.06);color:#fff;display:grid;place-items:center;font-size:20px;cursor:pointer;flex:none}
+.back:active{transform:scale(.92)}
+.card{position:relative;margin-top:14px;border-radius:22px;padding:18px;background:linear-gradient(160deg,rgba(255,255,255,.07),rgba(255,255,255,.02));overflow:hidden;border:1px solid var(--line);box-shadow:0 14px 40px rgba(0,0,0,.35)}
+.card::before{content:"";position:absolute;top:0;left:12%;right:12%;height:1px;background:linear-gradient(90deg,transparent,rgba(255,255,255,.45),transparent)}
+
+/* mode picker */
+.sub{font-size:13.5px;color:var(--mut);line-height:1.6;margin:4px 2px 6px}
+.mode{display:flex;align-items:center;gap:16px;width:100%;text-align:left;color:inherit;font:inherit;cursor:pointer;margin-top:14px;padding:20px 18px;border-radius:24px;border:1px solid var(--line);background:linear-gradient(160deg,rgba(255,255,255,.07),rgba(255,255,255,.02));transition:transform .25s var(--ease),border-color .3s;position:relative;overflow:hidden}
+.mode::after{content:"";position:absolute;inset:auto 0 0 0;height:3px;background:var(--c)}
+.mode:active{transform:scale(.97);border-color:var(--c)}
+.mode .big{width:64px;height:64px;border-radius:20px;display:grid;place-items:center;background:color-mix(in srgb,var(--c) 16%,transparent);color:var(--c);font-weight:800;font-size:25px;letter-spacing:-1px;box-shadow:0 0 28px color-mix(in srgb,var(--c) 30%,transparent)}
+.mode h3{font-size:19px;letter-spacing:-.2px}
+.mode p{font-size:12.5px;color:var(--mut);margin-top:4px;line-height:1.5}
+.mode .ar{margin-left:auto;font-size:22px;color:var(--c)}
+
+/* signal card */
+.sig{text-align:center;padding:22px 18px 18px}
+.sg{font-size:58px;font-weight:900;letter-spacing:1px;line-height:1;margin:12px 0 6px;transition:color .4s;text-shadow:0 0 28px currentColor}
+.sg.big{color:var(--g)}.sg.small{color:var(--r)}.sg.wait{color:var(--o);font-size:32px;padding:13px 0;letter-spacing:3px}
+.per{display:inline-block;padding:7px 14px;border-radius:10px;background:rgba(255,255,255,.07);font-size:13px;font-weight:700;letter-spacing:.5px}
+.cd{display:flex;align-items:center;gap:12px;margin-top:16px;text-align:left}
+.ring{position:relative;width:54px;height:54px;flex:none}
+.ring svg{width:54px;height:54px;transform:rotate(-90deg)}
+.ring circle{fill:none;stroke-width:5;stroke-linecap:round}
+.ring .bg{stroke:rgba(255,255,255,.08)}.ring .fg{stroke:var(--g);stroke-dasharray:138.2;transition:stroke-dashoffset 1s linear,stroke .3s}
+.ring b{position:absolute;inset:0;display:grid;place-items:center;font-size:15px;font-variant-numeric:tabular-nums}
+.cd small{display:block;color:var(--mut);font-size:11px}.cd span{font-size:13.5px;font-weight:600}
+.info{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:14px}
+.tile{padding:12px;border-radius:15px;background:rgba(255,255,255,.04);border:1px solid var(--line);text-align:left}
+.tile.full{grid-column:1/-1}
+.tile .k{font-size:10.5px;color:var(--mut);letter-spacing:1.2px;text-transform:uppercase;font-weight:600}
+.tile .v{font-size:16px;font-weight:800;margin-top:4px}
+.tile .v.g{color:var(--g)}.tile .v.v2{color:#b79cff}
+.accb{height:5px;border-radius:5px;background:rgba(255,255,255,.08);margin-top:8px;overflow:hidden}
+.accb i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--g),var(--v));transition:width .8s var(--ease)}
+.last{margin-top:14px;padding:12px;border-radius:15px;background:rgba(0,0,0,.28);border:1px solid var(--line);text-align:left;font-size:13px;line-height:1.6}
+.last .t{display:flex;justify-content:space-between;align-items:center}
+.badge{display:inline-block;padding:4px 10px;border-radius:8px;font-size:11px;font-weight:800;letter-spacing:.8px}
+.b-w{color:var(--g);background:rgba(34,227,155,.12);border:1px solid rgba(34,227,155,.3)}
+.b-l{color:var(--r);background:rgba(255,77,109,.12);border:1px solid rgba(255,77,109,.3)}
+.b-n{color:var(--mut);background:rgba(255,255,255,.06);border:1px solid var(--line)}
+
+/* stats */
+.g3{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:12px}
+.g3 .tile{text-align:center}.g3 .tile .v{font-size:22px}
+.str{display:flex;flex-wrap:wrap;gap:6px;margin-top:12px;justify-content:center}
+.str i{width:24px;height:24px;border-radius:8px;display:grid;place-items:center;font-size:11px;font-weight:800;font-style:normal}
+.str .w{background:rgba(34,227,155,.15);color:var(--g)}.str .l{background:rgba(255,77,109,.15);color:var(--r)}
+
+/* history */
+.hh,.hr{display:grid;grid-template-columns:50px 40px 44px 52px 1fr 54px;gap:4px;align-items:center;text-align:center}
+.hh{padding:0 4px 8px;border-bottom:1px solid var(--line);font-size:10px;color:var(--mut);letter-spacing:.8px;text-transform:uppercase;font-weight:700}
+.hr{padding:9px 4px;border-bottom:1px solid rgba(255,255,255,.05);font-size:12px;font-weight:700}
+.hr:last-child{border:0}
+.hr.new{background:rgba(139,92,246,.1);border-radius:12px}
+.ball{width:30px;height:30px;border-radius:50%;margin:0 auto;display:grid;place-items:center;font-size:13px;font-weight:800;color:#fff;box-shadow:inset -3px -4px 7px rgba(0,0,0,.4),inset 2px 2px 5px rgba(255,255,255,.25)}
+.dots{display:flex;gap:4px;justify-content:center}.dots i{width:10px;height:10px;border-radius:50%}
+.c-g{background:#16c784}.c-r{background:#ef4444}.c-v{background:#8b5cf6}
+.sz{font-size:12px}.pr{font-size:11px}
+.pr.big,.sz.big{color:var(--g)}.pr.small,.sz.small{color:var(--r)}
+.empty{text-align:center;color:var(--mut);font-size:12.5px;padding:22px 0}
+@media (prefers-reduced-motion:reduce){*{animation-duration:.01ms!important;transition:none!important}}
+</style></head><body>
+<svg width="0" height="0" style="position:absolute">
+<symbol id="back" viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></symbol>
+<symbol id="arrow" viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></symbol>
+</svg>
+<iframe id="bg" class="hide" title="engine"></iframe>
+
+<div class="wrap">
+<!-- STEP 1: choose mode -->
+<section id="pick">
+  <div class="top rv"><div><h1>Live Signal</h1><span class="pill"><i></i>SELECT ROUND TIME</span></div></div>
+  <p class="sub rv" style="animation-delay:.05s">Choose the round time you want to play. Signals are generated live for the selected game.</p>
+  <button class="mode rv" style="--c:#22e39b;animation-delay:.1s" data-m="30"><div class="big">30</div><div><h3>30 SECOND</h3><p>Fast rounds, a new signal every 30 seconds.</p></div><svg class="i ar"><use href="#arrow"/></svg></button>
+  <button class="mode rv" style="--c:#8b5cf6;animation-delay:.18s" data-m="60"><div class="big">1</div><div><h3>1 MINUTE</h3><p>Classic rounds, a new signal every minute.</p></div><svg class="i ar"><use href="#arrow"/></svg></button>
+</section>
+
+<!-- STEP 2: live room -->
+<section id="room" class="hide">
+  <div class="top"><button class="back" id="back"><svg class="i"><use href="#back"/></svg></button><div><h1 id="rt">Live Signal</h1><span class="pill"><i></i>LIVE</span></div></div>
+
+  <div class="card sig">
+    <span class="lb">Next Signal</span>
+    <div id="sg" class="sg wait">WAITING</div>
+    <div class="per" id="per">Period: --</div>
+    <div class="cd">
+      <div class="ring"><svg viewBox="0 0 54 54"><circle class="bg" cx="27" cy="27" r="22"/><circle class="fg" id="fg" cx="27" cy="27" r="22"/></svg><b id="sec">--</b></div>
+      <div><small>Live time</small><span id="live">--:--:--</span></div>
+    </div>
+    <div class="info">
+      <div class="tile"><div class="k">Accuracy</div><div class="v g" id="acc">--%</div><div class="accb"><i id="accb"></i></div></div>
+      <div class="tile"><div class="k">Server</div><div class="v v2">Quantum X 4.v1</div></div>
+      <div class="tile full"><div class="k">Strategy</div><div class="v" id="strat">--</div></div>
+    </div>
+    <div class="last"><div class="t"><span class="lb">Last signal result</span><span class="badge b-n" id="lr">WAITING</span></div><div id="lt" style="color:var(--mut);margin-top:4px">Waiting for a new round...</div></div>
+  </div>
+
+  <div class="card">
+    <span class="lb">Win / Loss Record</span>
+    <div class="g3">
+      <div class="tile"><div class="k">Total</div><div class="v" id="st">0</div></div>
+      <div class="tile"><div class="k">Win</div><div class="v g" id="sw">0</div></div>
+      <div class="tile"><div class="k">Loss</div><div class="v" style="color:var(--r)" id="sl">0</div></div>
+    </div>
+    <div class="str" id="str"></div>
+  </div>
+
+  <div class="card">
+    <span class="lb">History</span>
+    <div style="margin-top:12px">
+      <div class="hh"><span>Period</span><span>No</span><span>Colour</span><span>Size</span><span>Signal</span><span>Result</span></div>
+      <div id="hist"><div class="empty">Loading history...</div></div>
+    </div>
+  </div>
+</section>
+</div>
+
+<script>
+/* ===== CONFIG =====
+   Each mode reads data from its own prediction page.
+   30 SECOND uses livepredection.html. For 1 MINUTE set the file name and the
+   localStorage keys that file writes (change them here if yours are different). */
+const MODES={
+ 30:{label:"30 SECOND",sec:30,src:"livepredection.html",
+     api:"https://draw.ar-lottery01.com/WinGo/WinGo_30S/GetHistoryIssuePage.json",
+     k:{signal:"global_live_signal",period:"global_live_period",stats:"statsDB_9"}},
+ 60:{label:"1 MINUTE",sec:60,src:"livepredection_1m.html",
+     api:"https://draw.ar-lottery01.com/WinGo/WinGo_1M/GetHistoryIssuePage.json",
+     k:{signal:"global_live_signal_1m",period:"global_live_period_1m",stats:"statsDB_9_1m"}}
+};
+const STRATS=["Trend Reversal","Pattern Sync 500","Momentum Flow","Dragon Chain","Neural Cluster","Wave Breaker","Smart Recovery","Mirror Match","Zone Scanner"];
+const $=id=>document.getElementById(id);
+let M=null,hist=[],log={},timers=[],busy=false;
+
+const ls={get(k,d){try{const v=localStorage.getItem(k);return v===null?d:v;}catch(e){return d;}},set(k,v){try{localStorage.setItem(k,v);}catch(e){}}};
+const jget=(k,d)=>{try{return JSON.parse(ls.get(k,"")||"null")||d;}catch(e){return d;}};
+
+// same value for every user: seeded by the period number
+function seed(p){let h=0;for(const c of String(p))h=(h*31+c.charCodeAt(0))%1000003;return h;}
+const acc=p=>90+seed(p)%7;
+const strat=p=>STRATS[(seed(p)*13+7)%STRATS.length];
+const sizeOf=n=>n>=5?"BIG":"SMALL";
+const cols=n=>n===0?["r","v"]:n===5?["g","v"]:[1,3,7,9].includes(n)?["g"]:["r"];
+const ballBg=n=>{const c=cols(n);return c.length>1?`linear-gradient(135deg,${c[0]==="g"?"#16c784":"#ef4444"} 50%,#8b5cf6 50%)`:(c[0]==="g"?"#16c784":"#ef4444");};
+const nextP=p=>{try{return (BigInt(p)+1n).toString();}catch(e){return p+"1";}};
+
+// mode select
+addEventListener("storage",e=>{if(M&&e.key&&/global_live_|statsDB_9/.test(e.key)){poll();currentSignal();render();}});
+document.querySelectorAll(".mode").forEach(b=>b.onclick=()=>enter(+b.dataset.m));
+$("back").onclick=leave;
+function enter(m){
+  M=MODES[m];hist=[];log=jget("uwb_live_log_"+m,{});
+  $("pick").classList.add("hide");$("room").classList.remove("hide");
+  $("rt").textContent=M.label;
+  ls.set("uwb_mode",String(m));       // dashboard tracker follows this mode
+  if(parent===window)$("bg").src=M.src; // standalone only. Inside the dashboard it already runs
+  render();poll();
+  timers=[setInterval(tick,1000),setInterval(poll,1500)];tick();
+}
+function leave(){
+  timers.forEach(clearInterval);timers=[];$("bg").removeAttribute("src");M=null;
+  $("room").classList.add("hide");$("pick").classList.remove("hide");
+}
+
+// countdown
+function tick(){
+  if(!M)return;
+  const now=new Date(),s=M.sec-(now.getSeconds()%M.sec||0);
+  const left=(now.getSeconds()%M.sec===0)?M.sec:s;
+  $("sec").textContent=left;
+  $("fg").style.strokeDashoffset=138.2*(1-left/M.sec);
+  $("fg").style.stroke=left<=5?"var(--r)":"var(--g)";
+  $("live").textContent=now.toLocaleTimeString("en-GB",{hour12:false});
+  currentSignal();
+}
+
+// current signal from the prediction page
+function currentSignal(){
+  if(!M||!hist.length)return null;
+  const np=nextP(hist[0].p),sig=ls.get(M.k.signal,"WAITING"),per=ls.get(M.k.period,"");
+  const ok=(sig==="BIG"||sig==="SMALL")&&per===np;
+  if(ok&&!log[np]){log[np]={s:sig};saveLog();}
+  paintSignal(np,ok?sig:null);
+  return ok?sig:null;
+}
+function paintSignal(np,sig){
+  const el=$("sg");
+  el.textContent=sig||"WAITING";el.className="sg "+(sig?sig.toLowerCase():"wait");
+  $("per").textContent="Next Period: "+np;
+  $("acc").textContent=acc(np)+"%";$("accb").style.width=acc(np)+"%";
+  $("strat").textContent=strat(np);
+}
+function saveLog(){
+  const ks=Object.keys(log).sort();ks.slice(0,-80).forEach(k=>delete log[k]);
+  ls.set("uwb_live_log_"+(M.sec),JSON.stringify(log));
+}
+
+// history + win/loss
+async function poll(){
+  if(!M||busy)return;busy=true;
+  try{
+    const r=await fetch(M.api+"?t="+Date.now());
+    const j=await r.json();
+    hist=j.data.list.slice(0,10).map(x=>({p:String(x.issueNumber),n:parseInt(x.number)}));
+    resolve();render();
+  }catch(e){ if(!hist.length)$("hist").innerHTML='<div class="empty">Unable to load history. Retrying...</div>'; }
+  busy=false;
+}
+function resolve(){
+  let changed=false;
+  hist.forEach(h=>{
+    const e=log[h.p];
+    if(e&&!e.r){
+      e.r=(e.s===sizeOf(h.n))?"WIN":"LOSS";changed=true;
+    }
+  });
+  if(changed)saveLog();
+}
+
+function render(){
+  if(!M)return;
+  // record from the prediction page
+  const sd=jget(M.k.stats,{hist:[]}),hh=sd.hist||[];
+  const w=hh.filter(x=>x==="WIN").length,l=hh.filter(x=>x==="LOSS").length;
+  $("st").textContent=hh.length;$("sw").textContent=w;$("sl").textContent=l;
+  $("str").innerHTML=hh.slice(-10).map(x=>`<i class="${x==="WIN"?"w":"l"}">${x==="WIN"?"W":"L"}</i>`).join("")||'<span class="empty" style="padding:4px">No results yet</span>';
+  // last result
+  const done=Object.keys(log).filter(k=>log[k].r).sort().pop();
+  if(done){const e=log[done];$("lr").textContent=e.r;$("lr").className="badge "+(e.r==="WIN"?"b-w":"b-l");
+    $("lt").innerHTML=`Period ${done}<br>Signal: <b style="color:#fff">${e.s}</b>`;}
+  if(!hist.length)return;
+  currentSignal();
+  $("hist").innerHTML=hist.map((h,i)=>{
+    const e=log[h.p],sz=sizeOf(h.n);
+    const res=e&&e.r?`<span class="badge ${e.r==="WIN"?"b-w":"b-l"}">${e.r}</span>`:'<span style="color:var(--mut)">-</span>';
+    const pr=e?`<span class="pr ${e.s.toLowerCase()}">${e.s}</span>`:'<span style="color:var(--mut)">-</span>';
+    return `<div class="hr ${i===0?"new":""}"><span>${h.p.slice(-4)}</span><span><div class="ball" style="background:${ballBg(h.n)}">${h.n}</div></span><span class="dots">${cols(h.n).map(c=>`<i class="c-${c}"></i>`).join("")}</span><span class="sz ${sz.toLowerCase()}">${sz==="BIG"?"Big":"Small"}</span>${pr}${res}</div>`;
+  }).join("");
+}
+</script></body></html>

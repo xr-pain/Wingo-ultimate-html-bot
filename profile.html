@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html lang="en"><head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#05040b">
+<title>Profile</title>
+<style>
+@property --a{syntax:"<angle>";inherits:false;initial-value:0deg}
+:root{--g:#22e39b;--v:#8b5cf6;--r:#ff4d6d;--o:#ffb020;--bg:#05040b;--tx:#f4f2ff;--mut:#8c87aa;--line:rgba(255,255,255,.08);--ease:cubic-bezier(.22,.8,.24,1)}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html{background:var(--bg)}
+body{font-family:Inter,"SF Pro Display",system-ui,-apple-system,Segoe UI,Roboto,sans-serif;color:var(--tx);min-height:100vh;overflow-x:hidden;padding:0 16px 32px;-webkit-font-smoothing:antialiased;background:radial-gradient(520px 340px at 90% -4%,rgba(139,92,246,.32),transparent 70%),radial-gradient(460px 340px at -12% 50%,rgba(34,227,155,.14),transparent 70%),radial-gradient(480px 340px at 105% 100%,rgba(255,77,109,.14),transparent 70%),var(--bg)}
+.wrap{max-width:460px;margin:0 auto}
+svg.i{width:1em;height:1em;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;flex:none}
+.rv{opacity:0;transform:translate3d(0,18px,0);animation:rise .7s var(--ease) forwards}
+@keyframes rise{to{opacity:1;transform:none}}
+.lb{font-size:10.5px;color:var(--mut);letter-spacing:1.4px;text-transform:uppercase;font-weight:600}
+
+/* ===== HERO HEADER ===== */
+.hero{position:relative;padding:calc(env(safe-area-inset-top,0px) + 26px) 0 8px;text-align:center}
+.avatar-wrap{position:relative;display:inline-block;margin-bottom:14px}
+.avatar{width:96px;height:96px;border-radius:50%;padding:3px;background:conic-gradient(from var(--a),var(--v),var(--g),var(--o),var(--r),var(--v));animation:rot 8s linear infinite;box-shadow:0 0 40px rgba(139,92,246,.4),0 0 80px rgba(34,227,155,.15);position:relative;z-index:1}
+@keyframes rot{to{--a:360deg}}
+.avatar .in{width:100%;height:100%;border-radius:50%;background:linear-gradient(135deg,#1a1530,#0d0a1d);display:grid;place-items:center;font-size:40px;color:#fff;box-shadow:inset 0 0 20px rgba(139,92,246,.4)}
+.avatar .in svg{width:44px;height:44px;stroke:url(#avGrad)}
+.verify{position:absolute;right:2px;bottom:4px;width:26px;height:26px;border-radius:50%;background:linear-gradient(135deg,var(--g),#18c586);display:grid;place-items:center;color:#04030a;font-size:14px;font-weight:900;border:3px solid var(--bg);z-index:2;box-shadow:0 4px 12px rgba(34,227,155,.5)}
+.hero h1{font-size:22px;font-weight:800;letter-spacing:-.3px;background:linear-gradient(90deg,#fff,#cdbfff 45%,var(--g));-webkit-background-clip:text;background-clip:text;color:transparent;margin-bottom:4px}
+.hero .sub{font-size:11px;color:var(--mut);letter-spacing:1.4px;text-transform:uppercase;font-weight:600}
+.hero .status{display:inline-flex;align-items:center;gap:7px;margin-top:10px;font-size:10.5px;font-weight:700;letter-spacing:1.2px;color:var(--g);padding:5px 12px;border-radius:99px;background:rgba(34,227,155,.08);border:1px solid rgba(34,227,155,.28)}
+.hero .status i{width:6px;height:6px;border-radius:50%;background:var(--g);animation:pulse 2s ease-in-out infinite;box-shadow:0 0 8px var(--g)}
+@keyframes pulse{50%{opacity:.35;transform:scale(.8)}}
+
+/* ===== CARD ===== */
+.card{position:relative;margin-top:14px;border-radius:22px;padding:18px;background:linear-gradient(160deg,rgba(255,255,255,.07),rgba(255,255,255,.02));overflow:hidden;border:1px solid var(--line);box-shadow:0 14px 40px rgba(0,0,0,.35)}
+.card::before{content:"";position:absolute;top:0;left:12%;right:12%;height:1px;background:linear-gradient(90deg,transparent,rgba(255,255,255,.45),transparent)}
+
+/* ===== UID CARD ===== */
+.uid{display:flex;align-items:center;gap:13px}
+.uid .ic{width:46px;height:46px;border-radius:14px;display:grid;place-items:center;font-size:21px;color:#fff;background:linear-gradient(135deg,var(--v),#5b34c9);box-shadow:0 8px 20px rgba(139,92,246,.4);flex:none}
+.uid .t{flex:1;min-width:0}
+.uid .k{font-size:10px;color:var(--mut);letter-spacing:1.4px;text-transform:uppercase;font-weight:600}
+.uid b{-webkit-user-select:all;user-select:all;display:block;font-size:20px;letter-spacing:2.5px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;margin-top:4px;font-weight:700}
+.cp{display:flex;align-items:center;gap:6px;border:1px solid var(--line);background:rgba(255,255,255,.06);color:#fff;padding:10px 13px;border-radius:12px;font-weight:700;font-size:12px;cursor:pointer;transition:transform .2s var(--ease),color .3s,border-color .3s,background .3s;flex:none}
+.cp:active{transform:scale(.94)}
+.cp.done{color:var(--g);border-color:rgba(34,227,155,.4);background:rgba(34,227,155,.08)}
+.cp svg{width:13px;height:13px}
+
+/* ===== MEMBERSHIP ===== */
+.mem-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:14px}
+.mem-head h2{font-size:20px;font-weight:800;letter-spacing:-.3px;display:flex;align-items:center;gap:8px}
+.mem-head h2 svg{width:20px;height:20px;color:var(--g)}
+.badge{font-size:10px;font-weight:800;letter-spacing:1.4px;padding:6px 12px;border-radius:99px;color:#04030a;background:linear-gradient(135deg,var(--g),#18c586);flex:none;transition:all .4s var(--ease)}
+.badge.limit{background:linear-gradient(135deg,var(--r),#c92e4a);color:#fff}
+.badge.warn{background:linear-gradient(135deg,var(--o),#e09010);color:#04030a}
+.limit-viz{display:flex;align-items:center;gap:16px}
+.donut{position:relative;width:84px;height:84px;flex:none}
+.donut svg{width:84px;height:84px;transform:rotate(-90deg)}
+.donut circle{fill:none;stroke-width:8;stroke-linecap:round}
+.donut .bg{stroke:rgba(255,255,255,.08)}
+.donut .fg{stroke:url(#donutGrad);transition:stroke-dashoffset 1.4s var(--ease)}
+.donut .pct{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;line-height:1}
+.donut .pct b{font-size:20px;font-weight:800;letter-spacing:-.5px}
+.donut .pct small{font-size:9px;color:var(--mut);letter-spacing:1px;font-weight:700;margin-top:2px}
+.limit-info{flex:1;min-width:0}
+.limit-info .big{display:flex;align-items:baseline;gap:6px}
+.limit-info .big b{font-size:32px;font-weight:800;letter-spacing:-.8px;line-height:1;color:var(--g);transition:color .4s}
+.limit-info .big span{font-size:14px;color:var(--mut);font-weight:600}
+.limit-info .cap{font-size:11.5px;color:var(--mut);margin-top:6px;line-height:1.55}
+.limit-info .cap b{color:var(--tx);font-weight:700}
+
+/* ===== STATS GRID ===== */
+.stat-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px}
+.stat{position:relative;padding:15px 14px;border-radius:16px;background:rgba(255,255,255,.04);border:1px solid var(--line);overflow:hidden;transition:transform .2s var(--ease)}
+.stat:active{transform:scale(.97)}
+.stat::before{content:"";position:absolute;top:0;left:0;bottom:0;width:3px;background:var(--sc,var(--v));opacity:.85}
+.stat .k{font-size:10px;color:var(--mut);letter-spacing:1.2px;text-transform:uppercase;font-weight:700}
+.stat .v{font-size:24px;font-weight:800;letter-spacing:-.5px;margin-top:4px;color:var(--sc,var(--tx))}
+.stat .sub{font-size:10.5px;color:var(--mut);margin-top:2px}
+
+/* ===== SIGNAL BREAKDOWN ===== */
+.sb{display:flex;align-items:center;gap:12px;padding:13px 14px;border-radius:15px;background:rgba(255,255,255,.035);border:1px solid var(--line);margin-top:10px;position:relative;overflow:hidden}
+.sb::before{content:"";position:absolute;left:0;top:0;bottom:0;width:4px;background:var(--sc)}
+.sb .dot{width:34px;height:34px;border-radius:11px;display:grid;place-items:center;background:color-mix(in srgb,var(--sc) 18%,transparent);color:var(--sc);flex:none}
+.sb .dot svg{width:17px;height:17px}
+.sb .info{flex:1;min-width:0}
+.sb .info .n{font-size:13.5px;font-weight:700}
+.sb .info .s{font-size:11px;color:var(--mut);margin-top:2px}
+.sb .info .s b{color:var(--sc);font-weight:700}
+.sb .bar-wrap{width:80px;flex:none;text-align:right}
+.sb .bar-wrap .pct{font-size:13px;font-weight:800;color:var(--sc)}
+.sb .mini-bar{height:4px;border-radius:4px;background:rgba(255,255,255,.08);margin-top:5px;overflow:hidden}
+.sb .mini-bar i{display:block;height:100%;width:0;background:var(--sc);transition:width 1.4s var(--ease);border-radius:4px}
+
+/* ===== SETTINGS ROW ===== */
+.row{display:flex;justify-content:space-between;align-items:center;padding:14px;border-radius:14px;background:rgba(255,255,255,.04);border:1px solid var(--line);margin-top:10px}
+.row .k{font-size:13.5px;font-weight:700}
+.row .k small{display:block;font-size:11px;color:var(--mut);font-weight:500;margin-top:3px}
+.mode-sw{display:flex;gap:5px;background:rgba(0,0,0,.3);padding:4px;border-radius:11px;border:1px solid var(--line)}
+.mode-sw button{border:0;background:none;color:var(--mut);padding:8px 14px;border-radius:8px;font-weight:800;font-size:12px;cursor:pointer;transition:all .3s var(--ease);letter-spacing:.3px}
+.mode-sw button.on{background:linear-gradient(135deg,var(--g),#18c586);color:#04030a;box-shadow:0 4px 12px rgba(34,227,155,.35)}
+.mode-sw button:active{transform:scale(.94)}
+
+/* ===== ACHIEVEMENTS ===== */
+.ach-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:12px}
+.ach{position:relative;padding:12px 6px;border-radius:14px;background:rgba(255,255,255,.03);border:1px solid var(--line);text-align:center;opacity:.35;transition:all .4s var(--ease)}
+.ach.unlocked{opacity:1;background:linear-gradient(160deg,color-mix(in srgb,var(--ac) 15%,transparent),rgba(255,255,255,.02));border-color:color-mix(in srgb,var(--ac) 45%,transparent);box-shadow:0 0 20px color-mix(in srgb,var(--ac) 20%,transparent)}
+.ach .em{font-size:24px;line-height:1;margin-bottom:5px;display:block}
+.ach .nm{font-size:9px;font-weight:800;letter-spacing:.5px;color:var(--mut);text-transform:uppercase}
+.ach.unlocked .nm{color:var(--ac)}
+
+/* ===== FOOTER ===== */
+.ft{text-align:center;margin-top:22px;font-size:11px;color:var(--mut);line-height:1.8}
+.ft b{color:var(--tx);font-weight:700}
+.ft .row2{display:flex;align-items:center;justify-content:center;gap:6px;margin-top:6px;font-size:10.5px}
+.ft .row2 svg{width:11px;height:11px;color:var(--g)}
+
+@media (prefers-reduced-motion:reduce){*{animation-duration:.01ms!important;transition:none!important}}
+</style></head><body>
+
+<svg width="0" height="0" style="position:absolute">
+<defs>
+<linearGradient id="avGrad" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#cdbfff"/><stop offset="1" stop-color="#22e39b"/></linearGradient>
+<linearGradient id="donutGrad" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#22e39b"/><stop offset="1" stop-color="#8b5cf6"/></linearGradient>
+</defs>
+<symbol id="user" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0116 0"/></symbol>
+<symbol id="copy" viewBox="0 0 24 24"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 012-2h10"/></symbol>
+<symbol id="check" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7"/></symbol>
+<symbol id="live" viewBox="0 0 24 24"><circle cx="12" cy="12" r="2"/><path d="M7.8 7.8a6 6 0 000 8.4M16.2 7.8a6 6 0 010 8.4M4.9 4.9a10 10 0 000 14.2M19.1 4.9a10 10 0 010 14.2"/></symbol>
+<symbol id="future" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></symbol>
+<symbol id="shot" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3"/><path d="M12 1v4M12 19v4M1 12h4M19 12h4"/></symbol>
+<symbol id="crown" viewBox="0 0 24 24"><path d="M3 8l4 4 5-7 5 7 4-4-2 11H5z"/></symbol>
+<symbol id="shield" viewBox="0 0 24 24"><path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z"/><path d="M9 12l2.2 2.2L15.5 10"/></symbol>
+</svg>
+
+<div class="wrap">
+
+  <div class="hero rv">
+    <div class="avatar-wrap">
+      <div class="avatar"><div class="in"><svg class="i"><use href="#user"/></svg></div></div>
+      <div class="verify">✓</div>
+    </div>
+    <h1>UltimateWingoBot</h1>
+    <div class="sub">PREMIUM MEMBER</div>
+    <div class="status"><i></i>ACCOUNT ACTIVE</div>
+  </div>
+
+  <div class="card uid rv" style="animation-delay:.1s">
+    <div class="ic"><svg class="i"><use href="#user"/></svg></div>
+    <div class="t">
+      <div class="k">Your User ID</div>
+      <b id="uid">...</b>
+    </div>
+    <button class="cp" id="copy"><svg><use href="#copy"/></svg><span>Copy</span></button>
+  </div>
+
+  <div class="card rv" style="animation-delay:.18s">
+    <div class="mem-head">
+      <h2><svg class="i"><use href="#crown"/></svg><span id="planName">Loading...</span></h2>
+      <span class="badge" id="planBadge">ACTIVE</span>
+    </div>
+    <div class="limit-viz">
+      <div class="donut">
+        <svg viewBox="0 0 84 84">
+          <circle class="bg" cx="42" cy="42" r="34"/>
+          <circle class="fg" id="donutFg" cx="42" cy="42" r="34" style="stroke-dasharray:213.6;stroke-dashoffset:213.6"/>
+        </svg>
+        <div class="pct"><b id="donutPct">0</b><small>%</small></div>
+      </div>
+      <div class="limit-info">
+        <div class="big"><b id="limitNow">0</b><span>/ <span id="limitMax">--</span></span></div>
+        <div class="cap" id="limitCap"><b>--</b> signals remaining today</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card rv" style="animation-delay:.26s">
+    <span class="lb">Today's Activity</span>
+    <div class="stat-grid">
+      <div class="stat" style="--sc:#22e39b">
+        <div class="k">Wins</div>
+        <div class="v" id="sw">0</div>
+        <div class="sub" id="swSub">no wins yet</div>
+      </div>
+      <div class="stat" style="--sc:#ff4d6d">
+        <div class="k">Losses</div>
+        <div class="v" id="sl">0</div>
+        <div class="sub" id="slSub">no losses yet</div>
+      </div>
+      <div class="stat" style="--sc:#8b5cf6">
+        <div class="k">Total Signals</div>
+        <div class="v" id="st2">0</div>
+        <div class="sub">used today</div>
+      </div>
+      <div class="stat" style="--sc:#ffb020">
+        <div class="k">Accuracy</div>
+        <div class="v" id="sacc">0%</div>
+        <div class="sub">win rate</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card rv" style="animation-delay:.34s">
+    <span class="lb">Signal Breakdown</span>
+    <div id="breakdown" style="margin-top:8px"></div>
+  </div>
+
+  <div class="card rv" style="animation-delay:.42s">
+    <span class="lb">Achievements</span>
+    <div class="ach-grid" id="achGrid"></div>
+  </div>
+
+  <div class="card rv" style="animation-delay:.5s">
+    <span class="lb">Preferences</span>
+    <div class="row">
+      <div class="k">Signal Mode<small>Default refresh rate</small></div>
+      <div class="mode-sw">
+        <button data-m="30">30s</button>
+        <button data-m="60">1m</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="ft rv" style="animation-delay:.58s">
+    <b>UltimateWingoBot</b> v5.0<br>
+    Ultimate 500 Engine · API Based Predictions
+    <div class="row2"><svg><use href="#shield"/></svg>Encrypted · Secure · Trusted</div>
+  </div>
+
+</div>
+
+<script>
+const SUPABASE_URL = "https://jnhpnsfdnckkpnyrmpkc.supabase.co";
+const SUPABASE_KEY = "sb_publishable_t52nYcH5sW43P48ZSUE4eg_GWwyg_ma";
+
+const KEY="uwb_stats",LIMIT_KEY="uwb_daily_limit",DEFAULT_LIMIT=20;
+const TYPES={
+  live:{n:"Live Signals",c:"#22e39b",icon:"live"},
+  future:{n:"Future Signals",c:"#8b5cf6",icon:"future"},
+  sure:{n:"Sure Shot",c:"#ffb020",icon:"shot"}
+};
+const pad=n=>String(n).padStart(2,"0");
+const todayKey=()=>{const d=new Date();return d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate());};
+const blank=()=>({t:0,w:0,l:0,cur:0,best:0});
+function load(){try{const x=JSON.parse(localStorage.getItem(KEY));if(x&&x.days&&x.all)return x;}catch(e){}return{days:{},all:{}};}
+function getRec(x,type){return (x.days[todayKey()]||{})[type]||blank();}
+
+let uid="";try{uid=localStorage.getItem("uwb_uid")||"";}catch(e){}
+document.getElementById("uid").textContent=uid||"Unknown";
+document.getElementById("copy").onclick=()=>{
+  const cb=document.getElementById("copy"),lab=cb.querySelector("span");
+  const done=()=>{lab.textContent="Copied";cb.classList.add("done");setTimeout(()=>{lab.textContent="Copy";cb.classList.remove("done");},1500);};
+  if(navigator.clipboard&&window.isSecureContext){navigator.clipboard.writeText(uid).then(done).catch(()=>{lab.textContent="Hold ID";});}
+  else{lab.textContent="Hold ID";}
+};
+
+const curMode=localStorage.getItem("uwb_mode")||"30";
+document.querySelectorAll(".mode-sw button").forEach(b=>{
+  b.classList.toggle("on",b.dataset.m===curMode);
+  b.onclick=()=>{
+    localStorage.setItem("uwb_mode",b.dataset.m);
+    document.querySelectorAll(".mode-sw button").forEach(o=>o.classList.toggle("on",o===b));
+  };
+});
+
+const ACHS=[
+  {id:"first",em:"🎯",nm:"First",c:"#22e39b",check:(w)=>w>=1},
+  {id:"streak5",em:"🔥",nm:"Streak 5",c:"#ffb020",check:(w,_,best)=>best>=5},
+  {id:"wins25",em:"⚡",nm:"25 Wins",c:"#8b5cf6",check:(w)=>w>=25},
+  {id:"wins100",em:"👑",nm:"100 Wins",c:"#ff4d6d",check:(w)=>w>=100}
+];
+
+let serverLimit = DEFAULT_LIMIT;
+let userTier = "Free";
+
+async function fetchServerData() {
+    if(!uid) return;
+    try {
+        const res = await fetch(`${SUPABASE_URL}/rest/v1/bot_users?user_id=eq.${uid}&select=*`, {
+            headers: { apikey: SUPABASE_KEY }
+        });
+        const data = await res.json();
+        if(data && data.length > 0) {
+            const user = data[0];
+            if (user.access === 1 && user.tier) {
+                userTier = user.tier;
+                document.getElementById("planName").textContent = userTier + " PLAN";
+                document.getElementById("planBadge").textContent = userTier;
+                
+                // Limit sum
+                serverLimit = (user.sure_limit || 0) + (user.future_limit || 0) + (user.live_limit || 0);
+                if(serverLimit === 0) serverLimit = DEFAULT_LIMIT;
+            } else {
+                document.getElementById("planName").textContent = "FREE PLAN";
+                document.getElementById("planBadge").textContent = "FREE";
+            }
+        }
+    } catch (e) {
+        console.error("Server fetch error", e);
+    }
+    render();
+}
+
+function render(){
+  const x=load(),lim=serverLimit;
+  let total=0,w=0,l=0,best=0;
+  Object.keys(TYPES).forEach(t=>{const r=getRec(x,t);total+=r.t;w+=r.w;l+=r.l;if(r.best>best)best=r.best;});
+  const acc=total?(w/total*100):0;
+  const left=Math.max(0,lim-total);
+  const pct=Math.min(100,total/lim*100);
+  const reached=total>=lim;
+  const warn=total>=lim*.7&&!reached;
+
+  const C=213.6;
+  document.getElementById("donutFg").style.strokeDashoffset=C*(1-pct/100);
+  document.getElementById("donutPct").textContent=Math.round(pct);
+
+  const badge=document.getElementById("planBadge");
+  if(reached){badge.className="badge limit";badge.textContent="LIMIT";}
+  else if(warn){badge.className="badge warn";badge.textContent="ALMOST";}
+  else{badge.className="badge";if(userTier)badge.textContent=userTier;}
+
+  document.getElementById("limitNow").textContent=total;
+  document.getElementById("limitMax").textContent=lim;
+  const nowEl=document.getElementById("limitNow");
+  nowEl.style.color=reached?"var(--r)":warn?"var(--o)":"var(--g)";
+  const cap=document.getElementById("limitCap");
+  if(reached)cap.innerHTML='<b style="color:var(--r)">Daily limit reached</b><br>Resets at midnight';
+  else if(warn)cap.innerHTML=`<b style="color:var(--o)">Only ${left} left</b> · limit ${lim}/day`;
+  else cap.innerHTML=`<b>${left}</b> signals remaining today`;
+
+  document.getElementById("sw").textContent=w;
+  document.getElementById("sl").textContent=l;
+  document.getElementById("st2").textContent=total;
+  document.getElementById("sacc").textContent=acc.toFixed(1)+"%";
+  document.getElementById("swSub").textContent=w?`${w} successful`:"no wins yet";
+  document.getElementById("slSub").textContent=l?`${l} missed`:"no losses yet";
+
+  let bd="";
+  Object.keys(TYPES).forEach(t=>{
+    const d=TYPES[t],r=getRec(x,t);
+    const a=r.t?(r.w/r.t*100):0;
+    bd+=`<div class="sb" style="--sc:${d.c}">
+      <div class="dot"><svg><use href="#${d.icon}"/></svg></div>
+      <div class="info">
+        <div class="n">${d.n}</div>
+        <div class="s">${r.t} used · <b>${r.w}W</b> / ${r.l}L</div>
+      </div>
+      <div class="bar-wrap">
+        <div class="pct">${a.toFixed(0)}%</div>
+        <div class="mini-bar"><i data-w="${a}"></i></div>
+      </div>
+    </div>`;
+  });
+  document.getElementById("breakdown").innerHTML=bd;
+
+  document.getElementById("achGrid").innerHTML=ACHS.map(a=>{
+    const un=a.check(w,total,best);
+    return `<div class="ach ${un?"unlocked":""}" style="--ac:${a.c}">
+      <span class="em">${a.em}</span>
+      <div class="nm">${a.nm}</div>
+    </div>`;
+  }).join("");
+
+  setTimeout(()=>{
+    document.querySelectorAll(".sb .mini-bar i").forEach(b=>b.style.width=b.dataset.w+"%");
+  },100);
+}
+fetchServerData();
+setInterval(render,2000);
+addEventListener("storage",e=>{if(e.key===KEY)render();});
+</script></body></html>

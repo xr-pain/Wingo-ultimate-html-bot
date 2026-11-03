@@ -306,7 +306,7 @@ iframe.page{padding:0;border:0;width:100%;height:100%;background:transparent}
 const SUPABASE_URL = "https://jnhpnsfdnckkpnyrmpkc.supabase.co";
 const SUPABASE_KEY = "sb_publishable_t52nYcH5sW43P48ZSUE4eg_GWwyg_ma";
 
-// ===== RECORDS (local stats) =====
+// ===== RECORDS (local stats for Win/Loss tracking) =====
 const KEY="uwb_stats";
 const TYPES={
  live:{name:"Live Signal",sub:"Real-time round signals",icon:"live",c:"#22e39b"},
@@ -339,6 +339,7 @@ window.UWB={
 // ===== SERVER DATA / LIMIT =====
 let serverLimit=20;
 let userTier=null;
+let serverUserData = null; // Supabase theke asha data store korar jonno
 
 async function fetchUserData() {
     const uid = localStorage.getItem("uwb_uid");
@@ -349,9 +350,10 @@ async function fetchUserData() {
         });
         const data = await res.json();
         if(data && data.length > 0) {
-            const user = data[0];
-            if (user.access === 1 && user.tier) {
-                userTier = user.tier;
+            serverUserData = data[0];
+            
+            if (serverUserData.access === 1 && serverUserData.tier) {
+                userTier = serverUserData.tier;
                 const tierLevels = { 'PRO': 1, 'ELITE': 2, 'VIP': 3 };
                 const userLevel = tierLevels[userTier] || 0;
 
@@ -363,10 +365,12 @@ async function fetchUserData() {
                     }
                 });
 
-                // Update limits
-                const lim = (user.sure_limit || 0) + (user.future_limit || 0) + (user.live_limit || 0);
+                // Update limits using exact Supabase columns
+                const lim = (serverUserData.daily_sure_shot_limit || 0) + (serverUserData.daily_future_limit || 0) + (serverUserData.daily_live_limit || 0);
                 if (lim > 0) serverLimit = lim;
+                
                 updateLimit();
+                render(); // Re-render stats to show latest used counts
             }
         }
     } catch (e) {
@@ -375,27 +379,44 @@ async function fetchUserData() {
 }
 
 function getLimit(){return serverLimit;}
-function todayTotal(x){return Object.keys(TYPES).reduce((s,t)=>s+getRec(x,"today",t).t,0);}
+
+function todayTotal(){
+  if(serverUserData) {
+      return (serverUserData.used_sure_shot_today || 0) + (serverUserData.used_future_today || 0) + (serverUserData.used_live_today || 0);
+  }
+  // Fallback to local if server data isn't loaded yet
+  const x = load();
+  return Object.keys(TYPES).reduce((s,t)=>s+getRec(x,"today",t).t,0);
+}
+
 function updateLimit(){
-  const x=load(),total=todayTotal(x),lim=getLimit();
-  const pct=Math.min(100,total/lim*100),reached=total>=lim;
-  const card=document.getElementById("limitCard");
-  if(!card)return;
+  const total = todayTotal();
+  const lim = getLimit();
+  const pct = Math.min(100, (total/lim)*100);
+  const reached = total >= lim;
+  
+  const card = document.getElementById("limitCard");
+  if(!card) return;
+  
   card.classList.remove("warn","danger");
-  if(reached)card.classList.add("danger");
-  else if(total>=lim*.7)card.classList.add("warn");
-  document.getElementById("limitNow").textContent=total;
-  document.getElementById("limitMax").textContent=lim;
-  document.getElementById("limitPct").textContent=Math.round(pct)+"%";
-  const bar=document.getElementById("limitBar");
-  bar.style.width=pct+"%";
-  document.getElementById("limitUsedTxt").textContent=total+" used";
-  document.getElementById("limitLeftTxt").textContent=Math.max(0,lim-total)+" left";
-  const msg=document.getElementById("limitMsg");
+  if(reached) card.classList.add("danger");
+  else if(total >= lim*.7) card.classList.add("warn");
+  
+  document.getElementById("limitNow").textContent = total;
+  document.getElementById("limitMax").textContent = lim;
+  document.getElementById("limitPct").textContent = Math.round(pct)+"%";
+  
+  const bar = document.getElementById("limitBar");
+  bar.style.width = pct+"%";
+  
+  document.getElementById("limitUsedTxt").textContent = total+" used";
+  document.getElementById("limitLeftTxt").textContent = Math.max(0, lim-total)+" left";
+  
+  const msg = document.getElementById("limitMsg");
   if(reached){
     msg.innerHTML='<b style="color:var(--r)">Daily limit reached.</b> Contact admin to increase or wait until midnight.';
-  }else if(total>=lim*.7){
-    msg.innerHTML='<span style="color:var(--o)">Approaching limit.</span> '+Math.max(0,lim-total)+' signals remaining.';
+  }else if(total >= lim*.7){
+    msg.innerHTML='<span style="color:var(--o)">Approaching limit.</span> '+Math.max(0, lim-total)+' signals remaining.';
   }else{
     msg.textContent="Fresh signals reset daily at midnight.";
   }
@@ -405,11 +426,27 @@ let scope="today",firstRender=true,lastDay=todayKey();
 const fmt=n=>n.toLocaleString("en-US");
 const perf=document.getElementById("perf");
 let lastSig="";
+
 function render(){
-  const x=load();lastSig=JSON.stringify(x)+scope+todayKey();
-  Object.keys(TYPES).forEach(t=>{const el=document.querySelector('[data-n="'+t+'"]');if(el)el.textContent=fmt(getRec(x,"today",t).t);});
+  const x = load();
+  lastSig = JSON.stringify(x)+scope+todayKey();
+  
+  // Update Top counters (Live, Future, Sure Shot)
+  if(serverUserData) {
+      document.querySelector('[data-n="live"]').textContent = serverUserData.used_live_today || 0;
+      document.querySelector('[data-n="future"]').textContent = serverUserData.used_future_today || 0;
+      document.querySelector('[data-n="sure"]').textContent = serverUserData.used_sure_shot_today || 0;
+  } else {
+      // Fallback to local if server data is not ready
+      Object.keys(TYPES).forEach(t=>{
+          const el=document.querySelector('[data-n="'+t+'"]');
+          if(el) el.textContent=fmt(getRec(x,"today",t).t);
+      });
+  }
+
   perf.innerHTML="";
   Object.entries(TYPES).forEach(([t,d],i)=>{
+    // Performance (Win/Loss) still relies on local storage since Supabase doesn't track win/loss history
     const r=getRec(x,scope,t),acc=r.t?r.w/r.t*100:0,wp=r.t?r.w/r.t*100:0,lp=r.t?100-wp:0;
     const el=document.createElement("div");el.className="card"+(firstRender?" rv":"");el.style.cssText="--c:"+d.c+(firstRender?";animation-delay:"+(.4+i*.1)+"s":"");
     el.innerHTML=`<div class="ph"><div class="ic"><svg class="i"><use href="#${d.icon}"/></svg></div><div><h3>${d.name}</h3><small>${d.sub}</small></div>
@@ -427,6 +464,7 @@ function render(){
     ${r.t?"":'<p class="empty">No signals recorded '+(scope==="today"?"today":"yet")+'.</p>'}`;
     perf.appendChild(el);
   });
+  
   updateLimit();
   firstRender=false;
   setTimeout(()=>{
@@ -434,13 +472,19 @@ function render(){
     document.querySelectorAll(".bar i").forEach(b=>b.style.width=b.dataset.w+"%");
   },60);
 }
+
 document.querySelectorAll(".sw button").forEach(b=>b.onclick=()=>{
   scope=b.dataset.s;document.querySelectorAll(".sw button").forEach(o=>o.classList.toggle("on",o===b));render();
 });
 addEventListener("storage",e=>{if(e.key===KEY)render();});
-setInterval(()=>{if(todayKey()!==lastDay)lastDay=todayKey();if(JSON.stringify(load())+scope+todayKey()!==lastSig)render();},2000);
+setInterval(()=>{
+    if(todayKey()!==lastDay)lastDay=todayKey();
+    if(JSON.stringify(load())+scope+todayKey()!==lastSig)render();
+},2000);
+
 render();
-fetchUserData(); // Call the server
+fetchUserData(); // Initial Call
+setInterval(fetchUserData, 10000); // Auto-refresh server limits every 10 seconds
 
 // Must come from login first
 try{if(!localStorage.getItem("uwb_uid"))location.replace("login.html");}catch(e){}
@@ -448,7 +492,7 @@ try{if(!localStorage.getItem("uwb_uid"))location.replace("login.html");}catch(e)
 // ===== TABS =====
 const PAGES={
   sureshot:{title:"Sure Shot Signal",file:"sureshot.html",ready:false},
-  future:{title:"Future Signal",file:"future.html",ready:true},
+  future:{title:"Future Signal",file:"future.html",ready:true}, // <--- Updated to TRUE
   live:{title:"Live Signal",file:"live.html",ready:true},
   profile:{title:"Profile",file:"profile.html",ready:true}
 };
@@ -494,7 +538,7 @@ function toast(s,p){
 }
 
 // ===== ADMIN TIER MODAL =====
-const adminPop=documentfalselementById("adminPop"),acBox=document.getElementById("acBox");
+const adminPop=document.getElementById("adminPop"),acBox=document.getElementById("acBox");
 const TIER_CFG={
   Pro:{c:"#8b5cf6",icon:"diamond",badge:"PRO TIER"},
   Elite:{c:"#ffb020",icon:"crown",badge:"ELITE TIER"},

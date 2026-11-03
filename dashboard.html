@@ -448,7 +448,7 @@ try{if(!localStorage.getItem("uwb_uid"))location.replace("login.html");}catch(e)
 // ===== TABS =====
 const PAGES={
   sureshot:{title:"Sure Shot Signal",file:"sureshot.html",ready:false},
-  future:{title:"Future Signal",file:"future.html",ready:false},
+  future:{title:"Future Signal",file:"future.html",ready:true},
   live:{title:"Live Signal",file:"live.html",ready:true},
   profile:{title:"Profile",file:"profile.html",ready:true}
 };
@@ -494,7 +494,7 @@ function toast(s,p){
 }
 
 // ===== ADMIN TIER MODAL =====
-const adminPop=document.getElementById("adminPop"),acBox=document.getElementById("acBox");
+const adminPop=documentfalselementById("adminPop"),acBox=document.getElementById("acBox");
 const TIER_CFG={
   Pro:{c:"#8b5cf6",icon:"diamond",badge:"PRO TIER"},
   Elite:{c:"#ffb020",icon:"crown",badge:"ELITE TIER"},

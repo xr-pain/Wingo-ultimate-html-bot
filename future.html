@@ -164,7 +164,7 @@ const supabaseKey = 'sb_publishable_t52nYcH5sW43P48ZSUE4eg_GWwyg_ma';
 const supabaseClient = supabase.createClient(supabaseUrl, supabaseKey);
 
 const todayDate = new Date().toISOString().split('T')[0];
-const STORAGE_KEY = `wingo_30s_signals_${todayDate}`; // Only for saving list locally, not limits!
+const STORAGE_KEY = `wingo_30s_signals_${todayDate}`; 
 
 let maxFutureLimit = 0; 
 let usedFutureToday = 0;
@@ -176,7 +176,6 @@ setInterval(() => {
     if(pingEl) pingEl.innerText = Math.floor(Math.random() * 15) + 20;
 }, 3000);
 
-// === FETCH LIMITS FROM SUPABASE ===
 async function fetchUserLimit() {
     const uid = localStorage.getItem("uwb_uid");
     if(!uid) {
@@ -188,7 +187,7 @@ async function fetchUserLimit() {
     try {
         const { data, error } = await supabaseClient
             .from('bot_users')
-            .select('daily_future_limit, used_future_today') // UI Screenshot onujayi column names
+            .select('daily_future_limit, used_future_today')
             .eq('user_id', uid)
             .single();
 
@@ -264,8 +263,8 @@ function loadTodaySignals() {
 }
 
 async function startGeneration() {
-    if ((usedFutureToday + 1) > maxFutureLimit) {
-        alert(`Your daily limit is ${maxFutureLimit}. You cannot generate more.`);
+    if ((usedFutureToday + selectedCount) > maxFutureLimit) {
+        alert(`Your daily limit is ${maxFutureLimit}. You cannot generate ${selectedCount} signals.`);
         return;
     }
 
@@ -339,16 +338,15 @@ async function fetchAndProcessData() {
     }
 
     if (validSignals.length > 0) {
-        // UPDATE SUPABASE
         const uid = localStorage.getItem("uwb_uid");
-        const newUsed = usedFutureToday + 1; // 1 generation = 1 limit used
+        const newUsed = usedFutureToday + selectedCount; // FIX: Adds 5 or 10 instead of 1
         
         await supabaseClient.from('bot_users')
             .update({ used_future_today: newUsed })
             .eq('user_id', uid);
             
         usedFutureToday = newUsed;
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(validSignals)); // Save generated signals locally for tracking
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(validSignals)); 
         
         updateLimitUI();
         document.getElementById('terminal').style.display = 'none';
@@ -432,6 +430,13 @@ function startAutoCheck() {
                         s.status = (s.signal === actualResult) ? 'WIN' : 'LOSS';
                         s.actual = match.number;
                         updated = true;
+                        
+                        // FIX: Send the result to the main Dashboard UWB tracker
+                        try {
+                            if (window.parent && window.parent.UWB) {
+                                window.parent.UWB.record('future', s.status.toLowerCase());
+                            }
+                        } catch(e) { console.error("Dashboard sync error:", e); }
                     }
                 }
             });

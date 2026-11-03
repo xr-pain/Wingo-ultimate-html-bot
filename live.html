@@ -138,10 +138,7 @@ svg.i{width:1em;height:1em;fill:none;stroke:currentColor;stroke-width:1.8;stroke
 </div>
 
 <script>
-/* ===== CONFIG =====
-   Each mode reads data from its own prediction page.
-   30 SECOND uses livepredection.html. For 1 MINUTE set the file name and the
-   localStorage keys that file writes (change them here if yours are different). */
+/* ===== CONFIG ===== */
 const MODES={
  30:{label:"30 SECOND",sec:30,src:"livepredection.html",
      api:"https://draw.ar-lottery01.com/WinGo/WinGo_30S/GetHistoryIssuePage.json",
@@ -153,6 +150,7 @@ const MODES={
 const STRATS=["Trend Reversal","Pattern Sync 500","Momentum Flow","Dragon Chain","Neural Cluster","Wave Breaker","Smart Recovery","Mirror Match","Zone Scanner"];
 const $=id=>document.getElementById(id);
 let M=null,hist=[],log={},timers=[],busy=false;
+let recMode="NORMAL"; // Track Opposite/Normal mode
 
 const ls={get(k,d){try{const v=localStorage.getItem(k);return v===null?d:v;}catch(e){return d;}},set(k,v){try{localStorage.setItem(k,v);}catch(e){}}};
 const jget=(k,d)=>{try{return JSON.parse(ls.get(k,"")||"null")||d;}catch(e){return d;}};
@@ -170,12 +168,14 @@ const nextP=p=>{try{return (BigInt(p)+1n).toString();}catch(e){return p+"1";}};
 addEventListener("storage",e=>{if(M&&e.key&&/global_live_|statsDB_9/.test(e.key)){poll();currentSignal();render();}});
 document.querySelectorAll(".mode").forEach(b=>b.onclick=()=>enter(+b.dataset.m));
 $("back").onclick=leave;
+
 function enter(m){
   M=MODES[m];hist=[];log=jget("uwb_live_log_"+m,{});
+  recMode = ls.get("uwb_rec_mode_"+m, "NORMAL"); // Load current recovery state
   $("pick").classList.add("hide");$("room").classList.remove("hide");
   $("rt").textContent=M.label;
-  ls.set("uwb_mode",String(m));       // dashboard tracker follows this mode
-  if(parent===window)$("bg").src=M.src; // standalone only. Inside the dashboard it already runs
+  ls.set("uwb_mode",String(m));
+  if(parent===window)$("bg").src=M.src;
   render();poll();
   timers=[setInterval(tick,1000),setInterval(poll,1500)];tick();
 }
@@ -199,12 +199,20 @@ function tick(){
 // current signal from the prediction page
 function currentSignal(){
   if(!M||!hist.length)return null;
-  const np=nextP(hist[0].p),sig=ls.get(M.k.signal,"WAITING"),per=ls.get(M.k.period,"");
-  const ok=(sig==="BIG"||sig==="SMALL")&&per===np;
-  if(ok&&!log[np]){log[np]={s:sig};saveLog();}
-  paintSignal(np,ok?sig:null);
-  return ok?sig:null;
+  const np=nextP(hist[0].p),baseSig=ls.get(M.k.signal,"WAITING"),per=ls.get(M.k.period,"");
+  const ok=(baseSig==="BIG"||baseSig==="SMALL")&&per===np;
+
+  // Apply Opposite Logic
+  let finalSig = baseSig;
+  if(ok && recMode === "OPPOSITE"){
+      finalSig = (baseSig === "BIG") ? "SMALL" : "BIG";
+  }
+
+  if(ok&&!log[np]){log[np]={s:finalSig};saveLog();}
+  paintSignal(np, ok?finalSig:null);
+  return ok?finalSig:null;
 }
+
 function paintSignal(np,sig){
   const el=$("sg");
   el.textContent=sig||"WAITING";el.className="sg "+(sig?sig.toLowerCase():"wait");
@@ -212,6 +220,7 @@ function paintSignal(np,sig){
   $("acc").textContent=acc(np)+"%";$("accb").style.width=acc(np)+"%";
   $("strat").textContent=strat(np);
 }
+
 function saveLog(){
   const ks=Object.keys(log).sort();ks.slice(0,-80).forEach(k=>delete log[k]);
   ls.set("uwb_live_log_"+(M.sec),JSON.stringify(log));
@@ -228,12 +237,21 @@ async function poll(){
   }catch(e){ if(!hist.length)$("hist").innerHTML='<div class="empty">Unable to load history. Retrying...</div>'; }
   busy=false;
 }
+
 function resolve(){
   let changed=false;
   hist.forEach(h=>{
     const e=log[h.p];
     if(e&&!e.r){
-      e.r=(e.s===sizeOf(h.n))?"WIN":"LOSS";changed=true;
+      const result = (e.s===sizeOf(h.n))?"WIN":"LOSS";
+      e.r = result;
+      
+      // Apply the Opposite State Logic
+      if(result === "LOSS"){
+          recMode = (recMode === "NORMAL") ? "OPPOSITE" : "NORMAL";
+          ls.set("uwb_rec_mode_"+M.sec, recMode);
+      }
+      changed=true;
     }
   });
   if(changed)saveLog();
@@ -246,12 +264,15 @@ function render(){
   const w=hh.filter(x=>x==="WIN").length,l=hh.filter(x=>x==="LOSS").length;
   $("st").textContent=hh.length;$("sw").textContent=w;$("sl").textContent=l;
   $("str").innerHTML=hh.slice(-10).map(x=>`<i class="${x==="WIN"?"w":"l"}">${x==="WIN"?"W":"L"}</i>`).join("")||'<span class="empty" style="padding:4px">No results yet</span>';
+  
   // last result
   const done=Object.keys(log).filter(k=>log[k].r).sort().pop();
   if(done){const e=log[done];$("lr").textContent=e.r;$("lr").className="badge "+(e.r==="WIN"?"b-w":"b-l");
     $("lt").innerHTML=`Period ${done}<br>Signal: <b style="color:#fff">${e.s}</b>`;}
+    
   if(!hist.length)return;
   currentSignal();
+  
   $("hist").innerHTML=hist.map((h,i)=>{
     const e=log[h.p],sz=sizeOf(h.n);
     const res=e&&e.r?`<span class="badge ${e.r==="WIN"?"b-w":"b-l"}">${e.r}</span>`:'<span style="color:var(--mut)">-</span>';

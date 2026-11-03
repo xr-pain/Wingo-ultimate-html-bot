@@ -154,7 +154,6 @@ let M=null,hist=[],log={},timers=[],busy=false;
 const ls={get(k,d){try{const v=localStorage.getItem(k);return v===null?d:v;}catch(e){return d;}},set(k,v){try{localStorage.setItem(k,v);}catch(e){}}};
 const jget=(k,d)=>{try{return JSON.parse(ls.get(k,"")||"null")||d;}catch(e){return d;}};
 
-// same value for every user: seeded by the period number
 function seed(p){let h=0;for(const c of String(p))h=(h*31+c.charCodeAt(0))%1000003;return h;}
 const acc=p=>90+seed(p)%7;
 const strat=p=>STRATS[(seed(p)*13+7)%STRATS.length];
@@ -163,7 +162,6 @@ const cols=n=>n===0?["r","v"]:n===5?["g","v"]:[1,3,7,9].includes(n)?["g"]:["r"];
 const ballBg=n=>{const c=cols(n);return c.length>1?`linear-gradient(135deg,${c[0]==="g"?"#16c784":"#ef4444"} 50%,#8b5cf6 50%)`:(c[0]==="g"?"#16c784":"#ef4444");};
 const nextP=p=>{try{return (BigInt(p)+1n).toString();}catch(e){return p+"1";}};
 
-// mode select
 addEventListener("storage",e=>{if(M&&e.key&&/global_live_|statsDB_9/.test(e.key)){poll();currentSignal();render();}});
 document.querySelectorAll(".mode").forEach(b=>b.onclick=()=>enter(+b.dataset.m));
 $("back").onclick=leave;
@@ -182,7 +180,6 @@ function leave(){
   $("room").classList.add("hide");$("pick").classList.remove("hide");
 }
 
-// countdown
 function tick(){
   if(!M)return;
   const now=new Date(),s=M.sec-(now.getSeconds()%M.sec||0);
@@ -194,13 +191,12 @@ function tick(){
   currentSignal();
 }
 
-// current signal from the prediction page
 function currentSignal(){
   if(!M||!hist.length)return null;
   const np=nextP(hist[0].p),baseSig=ls.get(M.k.signal,"WAITING"),per=ls.get(M.k.period,"");
   const ok=(baseSig==="BIG"||baseSig==="SMALL")&&per===np;
 
-  // baseSig is already the final signal (handled by engine/livepredection)
+  // লগে সেভ হবে শুধুমাত্র যদি আপনি পেজে থাকেন এবং সিগন্যালটি দেখেন
   if(ok&&!log[np]){log[np]={s:baseSig};saveLog();}
   paintSignal(np, ok?baseSig:null);
   return ok?baseSig:null;
@@ -219,7 +215,6 @@ function saveLog(){
   ls.set("uwb_live_log_"+(M.sec),JSON.stringify(log));
 }
 
-// history + win/loss
 async function poll(){
   if(!M||busy)return;busy=true;
   try{
@@ -236,10 +231,7 @@ function resolve(){
   hist.forEach(h=>{
     const e=log[h.p];
     if(e&&!e.r){
-      // Check win/loss based on the signal sent by the engine
-      const result = (e.s===sizeOf(h.n))?"WIN":"LOSS";
-      e.r = result;
-      changed=true;
+      e.r=(e.s===sizeOf(h.n))?"WIN":"LOSS";changed=true;
     }
   });
   if(changed)saveLog();
@@ -247,22 +239,36 @@ function resolve(){
 
 function render(){
   if(!M)return;
-  // record from the prediction page
-  const sd=jget(M.k.stats,{hist:[]}),hh=sd.hist||[];
-  const w=hh.filter(x=>x==="WIN").length,l=hh.filter(x=>x==="LOSS").length;
-  $("st").textContent=hh.length;$("sw").textContent=w;$("sl").textContent=l;
-  $("str").innerHTML=hh.slice(-10).map(x=>`<i class="${x==="WIN"?"w":"l"}">${x==="WIN"?"W":"L"}</i>`).join("")||'<span class="empty" style="padding:4px">No results yet</span>';
+  
+  // ==========================================
+  // আপডেট: এখন থেকে গ্লোবাল স্ট্যাটসের বদলে 
+  // আপনার নিজের দেখা সিগন্যালের (log) হিসাব হবে।
+  // ==========================================
+  const resolvedLogs = Object.values(log).filter(x => x.r).map(x => x.r);
+  const w = resolvedLogs.filter(x => x === "WIN").length;
+  const l = resolvedLogs.filter(x => x === "LOSS").length;
+  const total = resolvedLogs.length;
+  
+  $("st").textContent = total;
+  $("sw").textContent = w;
+  $("sl").textContent = l;
+  $("str").innerHTML = resolvedLogs.slice(-10).map(x => `<i class="${x==="WIN"?"w":"l"}">${x==="WIN"?"W":"L"}</i>`).join("") || '<span class="empty" style="padding:4px">No results yet</span>';
   
   // last result
-  const done=Object.keys(log).filter(k=>log[k].r).sort().pop();
-  if(done){const e=log[done];$("lr").textContent=e.r;$("lr").className="badge "+(e.r==="WIN"?"b-w":"b-l");
-    $("lt").innerHTML=`Period ${done}<br>Signal: <b style="color:#fff">${e.s}</b>`;}
+  const done = Object.keys(log).filter(k => log[k].r).sort().pop();
+  if(done) {
+    const e = log[done];
+    $("lr").textContent = e.r;
+    $("lr").className = "badge " + (e.r === "WIN" ? "b-w" : "b-l");
+    $("lt").innerHTML = `Period ${done}<br>Signal: <b style="color:#fff">${e.s}</b>`;
+  }
     
   if(!hist.length)return;
   currentSignal();
   
   $("hist").innerHTML=hist.map((h,i)=>{
     const e=log[h.p],sz=sizeOf(h.n);
+    // যে সিগন্যাল আপনার লগে নেই (মানে আপনি দেখেননি) সেটা ' - ' দেখাবে
     const res=e&&e.r?`<span class="badge ${e.r==="WIN"?"b-w":"b-l"}">${e.r}</span>`:'<span style="color:var(--mut)">-</span>';
     const pr=e?`<span class="pr ${e.s.toLowerCase()}">${e.s}</span>`:'<span style="color:var(--mut)">-</span>';
     return `<div class="hr ${i===0?"new":""}"><span>${h.p.slice(-4)}</span><span><div class="ball" style="background:${ballBg(h.n)}">${h.n}</div></span><span class="dots">${cols(h.n).map(c=>`<i class="c-${c}"></i>`).join("")}</span><span class="sz ${sz.toLowerCase()}">${sz==="BIG"?"Big":"Small"}</span>${pr}${res}</div>`;

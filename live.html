@@ -150,7 +150,6 @@ const MODES={
 const STRATS=["Trend Reversal","Pattern Sync 500","Momentum Flow","Dragon Chain","Neural Cluster","Wave Breaker","Smart Recovery","Mirror Match","Zone Scanner"];
 const $=id=>document.getElementById(id);
 let M=null,hist=[],log={},timers=[],busy=false;
-let recMode="NORMAL"; // Track Opposite/Normal mode
 
 const ls={get(k,d){try{const v=localStorage.getItem(k);return v===null?d:v;}catch(e){return d;}},set(k,v){try{localStorage.setItem(k,v);}catch(e){}}};
 const jget=(k,d)=>{try{return JSON.parse(ls.get(k,"")||"null")||d;}catch(e){return d;}};
@@ -171,7 +170,6 @@ $("back").onclick=leave;
 
 function enter(m){
   M=MODES[m];hist=[];log=jget("uwb_live_log_"+m,{});
-  recMode = ls.get("uwb_rec_mode_"+m, "NORMAL"); // Load current recovery state
   $("pick").classList.add("hide");$("room").classList.remove("hide");
   $("rt").textContent=M.label;
   ls.set("uwb_mode",String(m));
@@ -202,15 +200,10 @@ function currentSignal(){
   const np=nextP(hist[0].p),baseSig=ls.get(M.k.signal,"WAITING"),per=ls.get(M.k.period,"");
   const ok=(baseSig==="BIG"||baseSig==="SMALL")&&per===np;
 
-  // Apply Opposite Logic
-  let finalSig = baseSig;
-  if(ok && recMode === "OPPOSITE"){
-      finalSig = (baseSig === "BIG") ? "SMALL" : "BIG";
-  }
-
-  if(ok&&!log[np]){log[np]={s:finalSig};saveLog();}
-  paintSignal(np, ok?finalSig:null);
-  return ok?finalSig:null;
+  // baseSig is already the final signal (handled by engine/livepredection)
+  if(ok&&!log[np]){log[np]={s:baseSig};saveLog();}
+  paintSignal(np, ok?baseSig:null);
+  return ok?baseSig:null;
 }
 
 function paintSignal(np,sig){
@@ -243,14 +236,9 @@ function resolve(){
   hist.forEach(h=>{
     const e=log[h.p];
     if(e&&!e.r){
+      // Check win/loss based on the signal sent by the engine
       const result = (e.s===sizeOf(h.n))?"WIN":"LOSS";
       e.r = result;
-      
-      // Apply the Opposite State Logic
-      if(result === "LOSS"){
-          recMode = (recMode === "NORMAL") ? "OPPOSITE" : "NORMAL";
-          ls.set("uwb_rec_mode_"+M.sec, recMode);
-      }
       changed=true;
     }
   });

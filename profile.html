@@ -231,7 +231,7 @@ svg.i{width:1em;height:1em;fill:none;stroke:currentColor;stroke-width:1.8;stroke
 const SUPABASE_URL = "https://jnhpnsfdnckkpnyrmpkc.supabase.co";
 const SUPABASE_KEY = "sb_publishable_t52nYcH5sW43P48ZSUE4eg_GWwyg_ma";
 
-const KEY="uwb_stats",LIMIT_KEY="uwb_daily_limit",DEFAULT_LIMIT=20;
+const KEY="uwb_stats";
 const TYPES={
   live:{n:"Live Signals",c:"#22e39b",icon:"live"},
   future:{n:"Future Signals",c:"#8b5cf6",icon:"future"},
@@ -268,8 +268,7 @@ const ACHS=[
   {id:"wins100",em:"👑",nm:"100 Wins",c:"#ff4d6d",check:(w)=>w>=100}
 ];
 
-let serverLimit = DEFAULT_LIMIT;
-let userTier = "Free";
+let serverData = null;
 
 async function fetchServerData() {
     if(!uid) return;
@@ -279,18 +278,11 @@ async function fetchServerData() {
         });
         const data = await res.json();
         if(data && data.length > 0) {
-            const user = data[0];
-            if (user.access === 1 && user.tier) {
-                userTier = user.tier;
-                document.getElementById("planName").textContent = userTier + " PLAN";
-                document.getElementById("planBadge").textContent = userTier;
-                
-                // Limit sum
-                serverLimit = (user.sure_limit || 0) + (user.future_limit || 0) + (user.live_limit || 0);
-                if(serverLimit === 0) serverLimit = DEFAULT_LIMIT;
+            serverData = data[0];
+            if (serverData.access === 1 && serverData.tier) {
+                document.getElementById("planName").textContent = serverData.tier + " PLAN";
             } else {
                 document.getElementById("planName").textContent = "FREE PLAN";
-                document.getElementById("planBadge").textContent = "FREE";
             }
         }
     } catch (e) {
@@ -300,60 +292,86 @@ async function fetchServerData() {
 }
 
 function render(){
-  const x=load(),lim=serverLimit;
-  let total=0,w=0,l=0,best=0;
-  Object.keys(TYPES).forEach(t=>{const r=getRec(x,t);total+=r.t;w+=r.w;l+=r.l;if(r.best>best)best=r.best;});
-  const acc=total?(w/total*100):0;
-  const left=Math.max(0,lim-total);
-  const pct=Math.min(100,total/lim*100);
-  const reached=total>=lim;
-  const warn=total>=lim*.7&&!reached;
+  const x=load();
+  
+  // Calculate Stats from LocalStorage (Win/Loss)
+  let w=0,l=0,best=0;
+  Object.keys(TYPES).forEach(t=>{const r=getRec(x,t);w+=r.w;l+=r.l;if(r.best>best)best=r.best;});
+  const localTotal = w+l;
+  const acc=localTotal?(w/localTotal*100):0;
 
+  // Server Limits
+  let lim=0, used=0;
+  if(serverData) {
+      lim = (serverData.daily_live_limit || 0) + (serverData.daily_future_limit || 0) + (serverData.daily_sure_shot_limit || 0);
+      used = (serverData.used_live_today || 0) + (serverData.used_future_today || 0) + (serverData.used_sure_shot_today || 0);
+  }
+
+  const left=Math.max(0,lim-used);
+  const pct=lim>0?Math.min(100,used/lim*100):0;
+  const reached=used>=lim && lim>0;
+  const warn=used>=lim*.7 && !reached && lim>0;
+
+  // Donut
   const C=213.6;
   document.getElementById("donutFg").style.strokeDashoffset=C*(1-pct/100);
   document.getElementById("donutPct").textContent=Math.round(pct);
 
+  // Badge
   const badge=document.getElementById("planBadge");
   if(reached){badge.className="badge limit";badge.textContent="LIMIT";}
   else if(warn){badge.className="badge warn";badge.textContent="ALMOST";}
-  else{badge.className="badge";if(userTier)badge.textContent=userTier;}
+  else{badge.className="badge";if(serverData && serverData.tier)badge.textContent=serverData.tier;}
 
-  document.getElementById("limitNow").textContent=total;
-  document.getElementById("limitMax").textContent=lim;
+  // Text
+  document.getElementById("limitNow").textContent=used;
+  document.getElementById("limitMax").textContent=lim||"--";
   const nowEl=document.getElementById("limitNow");
   nowEl.style.color=reached?"var(--r)":warn?"var(--o)":"var(--g)";
   const cap=document.getElementById("limitCap");
-  if(reached)cap.innerHTML='<b style="color:var(--r)">Daily limit reached</b><br>Resets at midnight';
+  if(lim===0) cap.innerHTML='<b style="color:var(--r)">No active plan</b>';
+  else if(reached)cap.innerHTML='<b style="color:var(--r)">Daily limit reached</b><br>Resets at midnight';
   else if(warn)cap.innerHTML=`<b style="color:var(--o)">Only ${left} left</b> · limit ${lim}/day`;
   else cap.innerHTML=`<b>${left}</b> signals remaining today`;
 
+  // Activity Grid
   document.getElementById("sw").textContent=w;
   document.getElementById("sl").textContent=l;
-  document.getElementById("st2").textContent=total;
+  document.getElementById("st2").textContent=used; // Server used count
   document.getElementById("sacc").textContent=acc.toFixed(1)+"%";
   document.getElementById("swSub").textContent=w?`${w} successful`:"no wins yet";
   document.getElementById("slSub").textContent=l?`${l} missed`:"no losses yet";
 
+  // Breakdown
   let bd="";
   Object.keys(TYPES).forEach(t=>{
     const d=TYPES[t],r=getRec(x,t);
-    const a=r.t?(r.w/r.t*100):0;
+    const localUsed = r.t;
+    let serverUsed=0, serverLimit=0;
+    if(serverData) {
+        if(t==='live'){ serverUsed=serverData.used_live_today||0; serverLimit=serverData.daily_live_limit||0; }
+        if(t==='future'){ serverUsed=serverData.used_future_today||0; serverLimit=serverData.daily_future_limit||0; }
+        if(t==='sure'){ serverUsed=serverData.used_sure_shot_today||0; serverLimit=serverData.daily_sure_shot_limit||0; }
+    }
+    const barPct = serverLimit > 0 ? Math.min(100, (serverUsed/serverLimit)*100) : 0;
+    
     bd+=`<div class="sb" style="--sc:${d.c}">
       <div class="dot"><svg><use href="#${d.icon}"/></svg></div>
       <div class="info">
         <div class="n">${d.n}</div>
-        <div class="s">${r.t} used · <b>${r.w}W</b> / ${r.l}L</div>
+        <div class="s">${serverUsed} used / ${serverLimit} limit</div>
       </div>
       <div class="bar-wrap">
-        <div class="pct">${a.toFixed(0)}%</div>
-        <div class="mini-bar"><i data-w="${a}"></i></div>
+        <div class="pct">${barPct.toFixed(0)}%</div>
+        <div class="mini-bar"><i data-w="${barPct}"></i></div>
       </div>
     </div>`;
   });
   document.getElementById("breakdown").innerHTML=bd;
 
+  // Achievements
   document.getElementById("achGrid").innerHTML=ACHS.map(a=>{
-    const un=a.check(w,total,best);
+    const un=a.check(w,used,best);
     return `<div class="ach ${un?"unlocked":""}" style="--ac:${a.c}">
       <span class="em">${a.em}</span>
       <div class="nm">${a.nm}</div>
@@ -364,7 +382,9 @@ function render(){
     document.querySelectorAll(".sb .mini-bar i").forEach(b=>b.style.width=b.dataset.w+"%");
   },100);
 }
+
 fetchServerData();
-setInterval(render,2000);
+setInterval(fetchServerData, 5000); // Auto update every 5s
+setInterval(render, 2000);
 addEventListener("storage",e=>{if(e.key===KEY)render();});
 </script></body></html>

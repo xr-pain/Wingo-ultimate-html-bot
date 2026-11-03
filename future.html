@@ -339,7 +339,7 @@ async function fetchAndProcessData() {
 
     if (validSignals.length > 0) {
         const uid = localStorage.getItem("uwb_uid");
-        const newUsed = usedFutureToday + selectedCount; // FIX: Adds 5 or 10 instead of 1
+        const newUsed = usedFutureToday + selectedCount; // FIX: 5 or 10 signals will be counted properly
         
         await supabaseClient.from('bot_users')
             .update({ used_future_today: newUsed })
@@ -431,12 +431,8 @@ function startAutoCheck() {
                         s.actual = match.number;
                         updated = true;
                         
-                        // FIX: Send the result to the main Dashboard UWB tracker
-                        try {
-                            if (window.parent && window.parent.UWB) {
-                                window.parent.UWB.record('future', s.status.toLowerCase());
-                            }
-                        } catch(e) { console.error("Dashboard sync error:", e); }
+                        // === FIX: Send the result to the main Dashboard UWB tracker ===
+                        updateDashboardStats(s.status.toLowerCase());
                     }
                 }
             });
@@ -448,6 +444,28 @@ function startAutoCheck() {
             }
         } catch (e) {}
     }, 5000);
+}
+
+// নতুন ফাংশন যা ড্যাশবোর্ডের পারফরম্যান্স আপডেট করবে
+function updateDashboardStats(result) {
+    const KEY = "uwb_stats";
+    let stats;
+    try { stats = JSON.parse(localStorage.getItem(KEY)); } catch(e) {}
+    if (!stats || !stats.days || !stats.all) stats = { days: {}, all: {} };
+    
+    const today = new Date().toISOString().split('T')[0];
+    stats.days[today] = stats.days[today] || {};
+    stats.days[today].future = stats.days[today].future || { t:0, w:0, l:0, cur:0, best:0 };
+    stats.all.future = stats.all.future || { t:0, w:0, l:0, cur:0, best:0 };
+    
+    const win = (result === 'win');
+    [stats.days[today].future, stats.all.future].forEach(o => {
+        o.t++;
+        if (win) { o.w++; o.cur++; if(o.cur > o.best) o.best = o.cur; }
+        else { o.l++; o.cur = 0; }
+    });
+    
+    localStorage.setItem(KEY, JSON.stringify(stats));
 }
 
 function checkGenerateButtonUnlock(signals) {

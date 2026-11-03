@@ -7,7 +7,6 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
 /* === Dashboard Theme Variables === */
-@property --a{syntax:"<angle>";inherits:false;initial-value:0deg}
 :root{--g:#22e39b;--v:#8b5cf6;--r:#ff4d6d;--o:#ffb020;--bg:#05040b;--tx:#f4f2ff;--mut:#8c87aa;--line:rgba(255,255,255,.08);--ease:cubic-bezier(.22,.8,.24,1)}
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
 html, body { height: 100%; background: var(--bg); font-family: Inter, "SF Pro Display", system-ui, -apple-system, sans-serif; color: var(--tx); -webkit-font-smoothing: antialiased; }
@@ -22,16 +21,11 @@ html, body { height: 100%; background: var(--bg); font-family: Inter, "SF Pro Di
 .pill i{width:6px;height:6px;border-radius:50%;background:var(--g);animation:pulse 2s ease-in-out infinite}
 @keyframes pulse{50%{opacity:.35;transform:scale(.8)}}
 
-/* === Server Strip (Fake Details) === */
-.server-strip {
-    display: flex; justify-content: space-between; align-items: center;
-    background: rgba(0,0,0,0.4); border: 1px solid var(--line); border-radius: 12px;
-    padding: 8px 12px; margin-top: 5px; font-size: 10px; font-weight: 600; color: var(--mut);
-}
+/* === Server Strip === */
+.server-strip { display: flex; justify-content: space-between; align-items: center; background: rgba(0,0,0,0.4); border: 1px solid var(--line); border-radius: 12px; padding: 8px 12px; margin-top: 5px; font-size: 10px; font-weight: 600; color: var(--mut); }
 .server-strip div { display: flex; align-items: center; gap: 5px; }
 .server-strip i.dot { width: 6px; height: 6px; border-radius: 50%; }
 .server-strip i.green { background: var(--g); box-shadow: 0 0 8px var(--g); }
-.server-strip i.blue { background: #2aabee; box-shadow: 0 0 8px #2aabee; }
 #ping-val { color: var(--g); font-family: monospace; font-size: 11px; }
 
 /* === Cards === */
@@ -98,7 +92,6 @@ html, body { height: 100%; background: var(--bg); font-family: Inter, "SF Pro Di
 <body>
 
 <div class="wrap">
-    <!-- Header with Back Button -->
     <div class="top">
         <button class="back" onclick="goBack()">
             <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/></svg>
@@ -109,19 +102,17 @@ html, body { height: 100%; background: var(--bg); font-family: Inter, "SF Pro Di
         </div>
     </div>
 
-    <!-- Fake Server Details -->
     <div class="server-strip">
         <div><i class="dot green"></i> Node: SG-1</div>
         <div><i class="dot blue"></i> Engine v5.2</div>
         <div>Ping: <span id="ping-val">24</span>ms</div>
     </div>
 
-    <!-- Limit Box -->
     <div class="card">
         <div class="limit-header">
             <div>
                 <span class="lb">Your Limit</span>
-                <div class="limit-val" id="limit-display">0 <span>Signals</span></div>
+                <div class="limit-val" id="limit-display">Loading...</div>
             </div>
             <div style="text-align: right;">
                 <span class="lb">Generated Today</span>
@@ -131,7 +122,6 @@ html, body { height: 100%; background: var(--bg); font-family: Inter, "SF Pro Di
         <div class="bar"><i id="limit-progress" style="width: 0%;"></i></div>
     </div>
 
-    <!-- Signal Count Selection -->
     <div id="selector-container">
         <div class="sec lb">How many signals?</div>
         <div class="sw" id="count-selector">
@@ -141,10 +131,8 @@ html, body { height: 100%; background: var(--bg); font-family: Inter, "SF Pro Di
         </div>
     </div>
 
-    <!-- Fake Terminal -->
     <div class="terminal" id="terminal"></div>
 
-    <!-- Generate Button -->
     <div id="btn-container">
         <button class="btn-gen" id="generate-btn" onclick="startGeneration()">
             <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
@@ -152,7 +140,6 @@ html, body { height: 100%; background: var(--bg); font-family: Inter, "SF Pro Di
         </button>
     </div>
 
-    <!-- Result Area -->
     <div class="card" id="result-card" style="display: none;">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 5px;">
             <span class="lb" id="result-title">Future Signals</span>
@@ -165,7 +152,6 @@ html, body { height: 100%; background: var(--bg); font-family: Inter, "SF Pro Di
 </div>
 
 <script>
-// === Smart Back Button ===
 function goBack() {
     if (window.parent && window.parent !== window) {
         try { window.parent.location.hash = '#home'; return; } catch(e) {}
@@ -178,21 +164,19 @@ const supabaseKey = 'sb_publishable_t52nYcH5sW43P48ZSUE4eg_GWwyg_ma';
 const supabaseClient = supabase.createClient(supabaseUrl, supabaseKey);
 
 const todayDate = new Date().toISOString().split('T')[0];
-const STORAGE_KEY = `wingo_30s_signals_${todayDate}`;
-const USAGE_KEY = `wingo_30s_usage_${todayDate}`;
+const STORAGE_KEY = `wingo_30s_signals_${todayDate}`; // Only for saving list locally, not limits!
 
-let maxFutureLimit = 0; // Dashboard theke asha limit
-let usedLimit = 0;
+let maxFutureLimit = 0; 
+let usedFutureToday = 0;
 let selectedCount = 10;
 let checkInterval = null;
 
-// === Fake Ping Fluctuation ===
 setInterval(() => {
     const pingEl = document.getElementById('ping-val');
     if(pingEl) pingEl.innerText = Math.floor(Math.random() * 15) + 20;
 }, 3000);
 
-// === Fetch User Limit & Disable Buttons ===
+// === FETCH LIMITS FROM SUPABASE ===
 async function fetchUserLimit() {
     const uid = localStorage.getItem("uwb_uid");
     if(!uid) {
@@ -204,20 +188,14 @@ async function fetchUserLimit() {
     try {
         const { data, error } = await supabaseClient
             .from('bot_users')
-            .select('tier, future_limit') // Dashboard theke tier & future_limit nicchi
+            .select('daily_future_limit, used_future_today') // UI Screenshot onujayi column names
             .eq('user_id', uid)
             .single();
 
         if (error) throw error;
 
-        // Limit logic (Tier onujayi)
-        if (data.future_limit) {
-            maxFutureLimit = data.future_limit;
-        } else {
-            // Jodi database e direct future_limit na thake, tier theke ber korbo
-            const tierLimits = { 'PRO': 20, 'ELITE': 40, 'VIP': 80 };
-            maxFutureLimit = tierLimits[data.tier] || 0;
-        }
+        maxFutureLimit = data.daily_future_limit || 0;
+        usedFutureToday = data.used_future_today || 0;
 
         updateLimitUI();
         configureSelectorButtons();
@@ -228,26 +206,17 @@ async function fetchUserLimit() {
     }
 }
 
-// === Configure Selector Buttons (5, 10, 20) based on Limit ===
 function configureSelectorButtons() {
     const buttons = document.querySelectorAll('#count-selector button');
-    
     buttons.forEach(btn => {
         const count = parseInt(btn.dataset.c);
-        if (count > maxFutureLimit) {
-            btn.disabled = true; // Disable if exceeds limit
-        } else {
-            btn.disabled = false;
-        }
+        btn.disabled = (count > maxFutureLimit);
     });
 
-    // Jodi default selected (10) limit er cheye boro hoy, tahole onno ekta valid select koro
     if (selectedCount > maxFutureLimit) {
         const validBtn = Array.from(buttons).find(b => !b.disabled);
-        if (validBtn) {
-            validBtn.click();
-        } else {
-            // If limit is 0 or less than 5
+        if (validBtn) validBtn.click();
+        else {
             selectedCount = 0;
             document.getElementById('generate-btn').disabled = true;
             document.getElementById('generate-btn').innerHTML = "Upgrade Tier to Generate";
@@ -255,7 +224,6 @@ function configureSelectorButtons() {
     }
 }
 
-// Selector Logic
 document.querySelectorAll('#count-selector button').forEach(btn => {
     btn.onclick = () => {
         if(btn.disabled) return;
@@ -265,31 +233,28 @@ document.querySelectorAll('#count-selector button').forEach(btn => {
     };
 });
 
-// === Initial Load ===
 window.onload = async () => {
     await fetchUserLimit();
-    loadTodayStats();
+    loadTodaySignals();
 };
 
-// === Update Limit UI ===
 function updateLimitUI() {
-    document.getElementById('limit-display').innerHTML = `${maxFutureLimit} <span>Signals</span>`;
-    document.getElementById('used-display').innerText = usedLimit;
+    const left = Math.max(0, maxFutureLimit - usedFutureToday);
+    document.getElementById('limit-display').innerHTML = `${left} <span>Left</span>`;
+    document.getElementById('used-display').innerText = `${usedFutureToday} / ${maxFutureLimit}`;
     
-    let percent = maxFutureLimit > 0 ? (usedLimit / maxFutureLimit) * 100 : 0;
+    let percent = maxFutureLimit > 0 ? (usedFutureToday / maxFutureLimit) * 100 : 0;
     document.getElementById('limit-progress').style.width = `${Math.min(100, percent)}%`;
 
-    if (usedLimit >= maxFutureLimit && maxFutureLimit > 0) {
+    if (usedFutureToday >= maxFutureLimit && maxFutureLimit > 0) {
         const btn = document.getElementById('generate-btn');
         btn.disabled = true;
         btn.innerHTML = "Daily Limit Reached";
+        document.getElementById('selector-container').style.display = 'none';
     }
 }
 
-function loadTodayStats() {
-    usedLimit = parseInt(localStorage.getItem(USAGE_KEY)) || 0;
-    updateLimitUI();
-
+function loadTodaySignals() {
     const savedData = localStorage.getItem(STORAGE_KEY);
     if (savedData) {
         const signals = JSON.parse(savedData);
@@ -298,10 +263,9 @@ function loadTodayStats() {
     }
 }
 
-// === Generate Logic ===
 async function startGeneration() {
-    if (selectedCount > maxFutureLimit) {
-        alert(`Your tier allows a maximum of ${maxFutureLimit} signals. Please upgrade.`);
+    if ((usedFutureToday + 1) > maxFutureLimit) {
+        alert(`Your daily limit is ${maxFutureLimit}. You cannot generate more.`);
         return;
     }
 
@@ -375,9 +339,16 @@ async function fetchAndProcessData() {
     }
 
     if (validSignals.length > 0) {
-        usedLimit += 1; 
-        localStorage.setItem(USAGE_KEY, usedLimit);
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(validSignals));
+        // UPDATE SUPABASE
+        const uid = localStorage.getItem("uwb_uid");
+        const newUsed = usedFutureToday + 1; // 1 generation = 1 limit used
+        
+        await supabaseClient.from('bot_users')
+            .update({ used_future_today: newUsed })
+            .eq('user_id', uid);
+            
+        usedFutureToday = newUsed;
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(validSignals)); // Save generated signals locally for tracking
         
         updateLimitUI();
         document.getElementById('terminal').style.display = 'none';
@@ -392,7 +363,6 @@ async function fetchAndProcessData() {
     }
 }
 
-// === Render Signals ===
 function renderSignals(signals) {
     const resultCard = document.getElementById('result-card');
     const listContainer = document.getElementById('signals-list');
@@ -408,13 +378,9 @@ function renderSignals(signals) {
 
         let resultHtml = '';
         if (s.status === 'WIN') {
-            resultHtml = `
-                <div class="res-win">WIN <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M20 6L9 17l-5-5"/></svg></div>
-                <div class="actual-number">Result: ${s.actual} (${parseInt(s.actual) >= 5 ? 'Big':'Small'})</div>`;
+            resultHtml = `<div class="res-win">WIN <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M20 6L9 17l-5-5"/></svg></div><div class="actual-number">Result: ${s.actual} (${parseInt(s.actual) >= 5 ? 'Big':'Small'})</div>`;
         } else if (s.status === 'LOSS') {
-            resultHtml = `
-                <div class="res-loss">LOSS <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M18 6L6 18M6 6l12 12"/></svg></div>
-                <div class="actual-number">Result: ${s.actual} (${parseInt(s.actual) >= 5 ? 'Big':'Small'})</div>`;
+            resultHtml = `<div class="res-loss">LOSS <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M18 6L6 18M6 6l12 12"/></svg></div><div class="actual-number">Result: ${s.actual} (${parseInt(s.actual) >= 5 ? 'Big':'Small'})</div>`;
         } else {
             resultHtml = `<div class="res-pending">Waiting...</div>`;
         }
@@ -444,7 +410,6 @@ function renderSignals(signals) {
     });
 }
 
-// === Auto Win/Loss Checker ===
 function startAutoCheck() {
     if(checkInterval) clearInterval(checkInterval);
     checkInterval = setInterval(async () => {
@@ -452,10 +417,7 @@ function startAutoCheck() {
         if (!savedData) return;
         
         let signals = JSON.parse(savedData);
-        if (signals.every(s => s.status)) {
-            clearInterval(checkInterval);
-            return;
-        }
+        if (signals.every(s => s.status)) { clearInterval(checkInterval); return; }
 
         try {
             const { data } = await supabaseClient.from('wingo_history').select('issue, number').eq('game', 'WinGo_30S').order('id', {ascending: false}).limit(50);
@@ -488,12 +450,11 @@ function checkGenerateButtonUnlock(signals) {
     const threshold = Math.ceil(signals.length * 0.8);
 
     if (completed >= threshold) {
-        // Jodi daily limit sesh na hoy, tobe abar generate button dakhabe
-        if (usedLimit < maxFutureLimit) {
+        if (usedFutureToday < maxFutureLimit) {
             document.getElementById('btn-container').style.display = 'block';
             document.getElementById('selector-container').style.display = 'block';
             document.getElementById('selector-container').style.opacity = '1';
-            configureSelectorButtons(); // Limit check kore button disable korbe
+            configureSelectorButtons();
             
             const btn = document.getElementById('generate-btn');
             btn.disabled = false;

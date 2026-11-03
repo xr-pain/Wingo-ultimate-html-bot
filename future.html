@@ -1,1 +1,463 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Future Signals - UltimateWingoBot</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+/* === Dashboard Theme Variables === */
+@property --a{syntax:"<angle>";inherits:false;initial-value:0deg}
+:root{--g:#22e39b;--v:#8b5cf6;--r:#ff4d6d;--o:#ffb020;--bg:#05040b;--tx:#f4f2ff;--mut:#8c87aa;--line:rgba(255,255,255,.08);--ease:cubic-bezier(.22,.8,.24,1)}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html, body { height: 100%; background: var(--bg); font-family: Inter, "SF Pro Display", system-ui, -apple-system, sans-serif; color: var(--tx); -webkit-font-smoothing: antialiased; }
+.wrap{max-width:460px;margin:0 auto;padding:0 16px 28px;position:relative;min-height:100vh}
 
+/* === Top Header & Back Button === */
+.top{display:flex;align-items:center;gap:12px;padding:calc(env(safe-area-inset-top,0px) + 20px) 0 10px}
+.back{width:40px;height:40px;border-radius:13px;border:1px solid var(--line);background:rgba(255,255,255,.06);color:#fff;display:grid;place-items:center;font-size:20px;cursor:pointer;flex:none;transition:transform 0.2s}
+.back:active{transform:scale(.92); background: rgba(255,255,255,.1)}
+.top h1{font-size:22px;font-weight:800;letter-spacing:-.3px;background:linear-gradient(90deg,#fff,#cdbfff 45%,var(--g));-webkit-background-clip:text;background-clip:text;color:transparent}
+.pill{display:inline-flex;align-items:center;gap:7px;margin-top:5px;font-size:10.5px;font-weight:700;letter-spacing:1.2px;color:var(--g);padding:4px 10px;border-radius:99px;background:rgba(34,227,155,.08);border:1px solid rgba(34,227,155,.25)}
+.pill i{width:6px;height:6px;border-radius:50%;background:var(--g);animation:pulse 2s ease-in-out infinite}
+@keyframes pulse{50%{opacity:.35;transform:scale(.8)}}
+
+/* === Server Strip (Fake Details) === */
+.server-strip {
+    display: flex; justify-content: space-between; align-items: center;
+    background: rgba(0,0,0,0.4); border: 1px solid var(--line); border-radius: 12px;
+    padding: 8px 12px; margin-top: 5px; font-size: 10px; font-weight: 600; color: var(--mut);
+}
+.server-strip div { display: flex; align-items: center; gap: 5px; }
+.server-strip i.dot { width: 6px; height: 6px; border-radius: 50%; }
+.server-strip i.green { background: var(--g); box-shadow: 0 0 8px var(--g); }
+.server-strip i.blue { background: #2aabee; box-shadow: 0 0 8px #2aabee; }
+#ping-val { color: var(--g); font-family: monospace; font-size: 11px; }
+
+/* === Cards === */
+.card{position:relative;margin-top:14px;border-radius:22px;padding:18px;background:linear-gradient(160deg,rgba(255,255,255,.07),rgba(255,255,255,.02));overflow:hidden;border:1px solid var(--line);box-shadow:0 14px 40px rgba(0,0,0,.35)}
+.card::before{content:"";position:absolute;top:0;left:12%;right:12%;height:1px;background:linear-gradient(90deg,transparent,rgba(255,255,255,.45),transparent)}
+.lb{font-size:10.5px;color:var(--mut);letter-spacing:1.4px;text-transform:uppercase;font-weight:600}
+.sec{margin:22px 2px 0;display:flex;align-items:center;gap:10px}
+.sec::after{content:"";flex:1;height:1px;background:linear-gradient(90deg,var(--line),transparent)}
+
+/* === Limit Section === */
+.limit-header { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 10px; }
+.limit-val { font-size: 22px; font-weight: 900; color: var(--o); text-shadow: 0 0 15px rgba(255,176,32,.4); line-height: 1; }
+.limit-val span { font-size: 13px; color: var(--mut); font-weight: 600; text-shadow: none; }
+.bar { height: 6px; border-radius: 9px; background: rgba(255,255,255,.08); overflow: hidden; display: flex; }
+.bar i { height: 100%; background: linear-gradient(90deg, var(--g), var(--v)); transition: width .8s var(--ease); border-radius: 9px; }
+
+/* === Signal Count Switch === */
+.sw{display:grid;grid-template-columns:repeat(3,1fr);gap:4px;margin-top:12px;padding:4px;border-radius:14px;background:rgba(255,255,255,.05);border:1px solid var(--line)}
+.sw button{border:0;padding:10px;border-radius:11px;background:none;color:var(--mut);font-weight:700;font-size:13px;cursor:pointer;transition:background .3s var(--ease),color .3s}
+.sw button.on{background:linear-gradient(135deg,var(--v),#5b34c9);color:#fff;box-shadow:0 6px 16px rgba(139,92,246,.35)}
+
+/* === Fake Terminal === */
+.terminal { display: none; font-family: monospace; font-size: 12px; color: var(--g); background: #000; padding: 15px; border-radius: 16px; border: 1px solid var(--line); margin-top: 14px; line-height: 1.6; box-shadow: inset 0 0 20px rgba(34,227,155,.1); }
+.terminal span { display: block; opacity: 0; animation: typing 0.3s forwards; }
+@keyframes typing { to { opacity: 1; } }
+
+/* === Generate Button === */
+.btn-gen { width: 100%; margin-top: 14px; padding: 18px; border-radius: 16px; border: none; font-size: 16px; font-weight: 800; letter-spacing: 1px; cursor: pointer; background: linear-gradient(135deg, var(--v), #6d28d9); color: #fff; box-shadow: 0 8px 25px rgba(139,92,246,.4); transition: transform .2s, box-shadow .2s; display: flex; justify-content: center; align-items: center; gap: 10px; }
+.btn-gen:active { transform: scale(.96); box-shadow: 0 4px 15px rgba(139,92,246,.6); }
+.btn-gen:disabled { opacity: 0.5; cursor: not-allowed; background: #333; box-shadow: none; }
+
+/* === Professional Signal Items === */
+.list-container { display: flex; flex-direction: column; gap: 12px; margin-top: 15px; }
+
+.sig-card { 
+    background: rgba(255,255,255,.03); border: 1px solid rgba(255,255,255,.06); 
+    border-radius: 16px; padding: 14px; display: flex; flex-direction: column; gap: 12px;
+    opacity: 0; transform: translateY(15px); animation: slideUp 0.5s var(--ease) forwards;
+    position: relative; overflow: hidden;
+}
+@keyframes slideUp { to { opacity: 1; transform: translateY(0); } }
+
+/* First Card Glow */
+.sig-card.first-card { background: rgba(139,92,246,.08); border-color: rgba(139,92,246,.3); box-shadow: 0 0 20px rgba(139,92,246,.1); }
+
+.sig-top { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px dashed rgba(255,255,255,.1); padding-bottom: 10px; }
+.sig-period { font-size: 14px; font-weight: 800; color: #fff; display: flex; align-items: center; gap: 8px;}
+.badge-next { font-size: 9px; background: rgba(34,227,155,.2); color: var(--g); padding: 3px 8px; border-radius: 6px; text-transform: uppercase; letter-spacing: 1px;}
+.sig-time { font-size: 10px; color: var(--mut); font-weight: 600; }
+
+.sig-middle { display: flex; justify-content: space-between; align-items: center; }
+.sig-pred-box { display: flex; flex-direction: column; gap: 4px; }
+.sig-pred-label { font-size: 9.5px; color: var(--mut); text-transform: uppercase; letter-spacing: 1px; }
+.sig-pred-val { font-size: 16px; font-weight: 900; letter-spacing: 1px; }
+.sig-pred-val.big { color: var(--g); text-shadow: 0 0 15px rgba(34,227,155,.3); }
+.sig-pred-val.small { color: var(--r); text-shadow: 0 0 15px rgba(255,77,109,.3); }
+
+.sig-vs { font-size: 10px; color: var(--mut); font-weight: 800; font-style: italic; opacity: 0.5; }
+
+.sig-res-box { display: flex; flex-direction: column; gap: 4px; align-items: flex-end; }
+.sig-res-label { font-size: 9.5px; color: var(--mut); text-transform: uppercase; letter-spacing: 1px; }
+
+/* Result States */
+.res-pending { font-size: 12px; font-weight: 700; color: var(--o); display: flex; align-items: center; gap: 5px; }
+.res-pending::before { content: ''; width: 10px; height: 10px; border: 2px solid var(--o); border-top-color: transparent; border-radius: 50%; animation: spin 1s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.res-win { font-size: 16px; font-weight: 900; color: var(--g); display: flex; align-items: center; gap: 5px; animation: pop 0.4s var(--ease); }
+.res-loss { font-size: 16px; font-weight: 900; color: var(--r); display: flex; align-items: center; gap: 5px; animation: pop 0.4s var(--ease); }
+@keyframes pop { 50% { transform: scale(1.1); } }
+
+.actual-number { font-size: 11px; color: var(--mut); font-weight: 600; margin-top: 2px; }
+
+</style>
+</head>
+<body>
+
+<div class="wrap">
+    <!-- Header with Back Button -->
+    <div class="top">
+        <button class="back" onclick="goBack()">
+            <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/></svg>
+        </button>
+        <div>
+            <h1>Future Signals</h1>
+            <span class="pill"><i></i>WinGo 30S API</span>
+        </div>
+    </div>
+
+    <!-- Fake Server Details -->
+    <div class="server-strip">
+        <div><i class="dot green"></i> Node: SG-1</div>
+        <div><i class="dot blue"></i> Engine v5.2</div>
+        <div>Ping: <span id="ping-val">24</span>ms</div>
+    </div>
+
+    <!-- Limit Box -->
+    <div class="card">
+        <div class="limit-header">
+            <div>
+                <span class="lb">Your Limit</span>
+                <div class="limit-val" id="limit-display">0 <span>Signals</span></div>
+            </div>
+            <div style="text-align: right;">
+                <span class="lb">Generated Today</span>
+                <div style="font-size: 16px; font-weight: 800; color: #fff;" id="used-display">0</div>
+            </div>
+        </div>
+        <div class="bar"><i id="limit-progress" style="width: 0%;"></i></div>
+    </div>
+
+    <!-- Signal Count Selection -->
+    <div id="selector-container">
+        <div class="sec lb">How many signals?</div>
+        <div class="sw" id="count-selector">
+            <button data-c="5">5</button>
+            <button class="on" data-c="10">10</button>
+            <button data-c="20">20</button>
+        </div>
+    </div>
+
+    <!-- Fake Terminal -->
+    <div class="terminal" id="terminal"></div>
+
+    <!-- Generate Button -->
+    <div id="btn-container">
+        <button class="btn-gen" id="generate-btn" onclick="startGeneration()">
+            <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+            Generate Future Signals
+        </button>
+    </div>
+
+    <!-- Result Area -->
+    <div class="card" id="result-card" style="display: none;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 5px;">
+            <span class="lb" id="result-title">Future Signals</span>
+            <span style="font-size:10px; color:var(--g); font-weight:bold; display:flex; align-items:center; gap:4px;">
+                <i style="width:6px;height:6px;border-radius:50%;background:var(--g);animation:pulse 1s infinite;"></i> LIVE TRACKER
+            </span>
+        </div>
+        <div class="list-container" id="signals-list"></div>
+    </div>
+</div>
+
+<script>
+// === Smart Back Button ===
+function goBack() {
+    // If inside dashboard iframe
+    if (window.parent && window.parent !== window) {
+        try {
+            window.parent.location.hash = '#home';
+            return;
+        } catch(e) {}
+    }
+    // If opened standalone
+    window.location.href = 'dashboard.html#home';
+}
+
+const supabaseUrl = 'https://jnhpnsfdnckkpnyrmpkc.supabase.co';
+const supabaseKey = 'sb_publishable_t52nYcH5sW43P48ZSUE4eg_GWwyg_ma';
+const supabaseClient = supabase.createClient(supabaseUrl, supabaseKey);
+
+const todayDate = new Date().toISOString().split('T')[0];
+const STORAGE_KEY = `wingo_30s_signals_${todayDate}`;
+const USAGE_KEY = `wingo_30s_usage_${todayDate}`;
+
+let totalLimit = 0, usedLimit = 0, selectedCount = 10;
+let checkInterval = null;
+
+// === Fake Ping Fluctuation ===
+setInterval(() => {
+    const pingEl = document.getElementById('ping-val');
+    if(pingEl) pingEl.innerText = Math.floor(Math.random() * 15) + 20; // Random 20-35ms
+}, 3000);
+
+// Selector Logic
+document.querySelectorAll('#count-selector button').forEach(btn => {
+    btn.onclick = () => {
+        document.querySelectorAll('#count-selector button').forEach(b => b.classList.remove('on'));
+        btn.classList.add('on');
+        selectedCount = parseInt(btn.dataset.c);
+    };
+});
+
+window.onload = async () => {
+    await fetchUserLimit();
+    loadTodayStats();
+};
+
+async function fetchUserLimit() {
+    try {
+        const { data, error } = await supabaseClient.from('bot_users').select('limit').limit(1).single();
+        if (error) throw error;
+        totalLimit = data.limit || 0;
+        updateLimitUI();
+    } catch (err) {
+        document.getElementById('limit-display').innerHTML = "N/A";
+    }
+}
+
+function loadTodayStats() {
+    usedLimit = parseInt(localStorage.getItem(USAGE_KEY)) || 0;
+    updateLimitUI();
+
+    const savedData = localStorage.getItem(STORAGE_KEY);
+    if (savedData) {
+        const signals = JSON.parse(savedData);
+        renderSignals(signals);
+        startAutoCheck();
+    }
+}
+
+function updateLimitUI() {
+    document.getElementById('limit-display').innerHTML = `${totalLimit} <span>Signals</span>`;
+    document.getElementById('used-display').innerText = usedLimit;
+    let percent = totalLimit > 0 ? (usedLimit / totalLimit) * 100 : 0;
+    document.getElementById('limit-progress').style.width = `${percent}%`;
+
+    if (usedLimit >= totalLimit && totalLimit > 0) {
+        const btn = document.getElementById('generate-btn');
+        btn.disabled = true;
+        btn.innerHTML = "Daily Limit Reached";
+    }
+}
+
+async function startGeneration() {
+    const btn = document.getElementById('generate-btn');
+    const terminal = document.getElementById('terminal');
+    
+    btn.disabled = true;
+    btn.innerHTML = `Connecting to API...`;
+    terminal.style.display = 'block';
+    terminal.innerHTML = '';
+    
+    document.getElementById('selector-container').style.opacity = '0.5';
+    document.querySelectorAll('#count-selector button').forEach(b => b.disabled = true);
+
+    const steps = [
+        "> GET /api/v5/history?limit=500 [200 OK]",
+        "> Parsing JSON payload...",
+        "> Running Pattern Matrix (SSSB/BBBS)...",
+        "> Eliminating AVOID nodes...",
+        `> Compiling ${selectedCount} Predictions...`
+    ];
+
+    for (let i = 0; i < steps.length; i++) {
+        let span = document.createElement('span');
+        span.innerText = steps[i];
+        terminal.appendChild(span);
+        await new Promise(r => setTimeout(r, 500)); 
+    }
+
+    try {
+        await fetchAndProcessData();
+    } catch (error) {
+        terminal.innerHTML += `<br><span style="color:var(--r)">> Error: API Timeout. Retrying...</span>`;
+        resetButton();
+    }
+}
+
+async function fetchAndProcessData() {
+    const { data, error } = await supabaseClient
+        .from('wingo_history').select('issue, number').eq('game', 'WinGo_30S')
+        .order('id', { ascending: false }).limit(500);
+
+    if (error) throw error;
+    if (!data || data.length === 0) throw new Error("No data");
+
+    const latestIssue = data[0].issue;
+    let validSignals = [];
+    let offset = 1;
+    const maxCheckLimit = 400; 
+
+    while (validSignals.length < selectedCount && offset <= maxCheckLimit) {
+        let nextIssue = (BigInt(latestIssue) + BigInt(offset)).toString();
+        let lastTwoDigits = nextIssue.slice(-2);
+
+        let matchedHistory = data.filter(row => row.issue.endsWith(lastTwoDigits));
+        let last4Matches = matchedHistory.slice(0, 4);
+
+        if (last4Matches.length === 4) {
+            let patternArr = last4Matches.map(row => parseInt(row.number) >= 5 ? 'B' : 'S');
+            let patternStr = patternArr.join('');
+
+            let signal = null;
+            if (patternStr === 'SSSB') signal = "SMALL";
+            else if (patternStr === 'BBBS') signal = "BIG";
+
+            if (signal) {
+                validSignals.push({ period: nextIssue, signal: signal, status: null, actual: null });
+            }
+        }
+        offset++;
+    }
+
+    if (validSignals.length > 0) {
+        usedLimit += 1; 
+        localStorage.setItem(USAGE_KEY, usedLimit);
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(validSignals));
+        
+        updateLimitUI();
+        document.getElementById('terminal').style.display = 'none';
+        renderSignals(validSignals);
+        document.getElementById('btn-container').style.display = 'none';
+        document.getElementById('selector-container').style.display = 'none';
+        
+        startAutoCheck();
+    } else {
+        document.getElementById('terminal').innerHTML += `<br><span style="color:var(--o)">> No valid patterns in current sequence.</span>`;
+        resetButton();
+    }
+}
+
+function renderSignals(signals) {
+    const resultCard = document.getElementById('result-card');
+    const listContainer = document.getElementById('signals-list');
+    listContainer.innerHTML = '';
+    resultCard.style.display = 'block';
+
+    const completedCount = signals.filter(s => s.status).length;
+    document.getElementById('result-title').innerText = `Predictions (${completedCount}/${signals.length} Settled)`;
+
+    signals.forEach((s, index) => {
+        const isBig = s.signal === 'BIG';
+        const delay = index * 0.08; 
+
+        // Result logic rendering
+        let resultHtml = '';
+        if (s.status === 'WIN') {
+            resultHtml = `
+                <div class="res-win">WIN <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M20 6L9 17l-5-5"/></svg></div>
+                <div class="actual-number">Result: ${s.actual} (${parseInt(s.actual) >= 5 ? 'Big':'Small'})</div>`;
+        } else if (s.status === 'LOSS') {
+            resultHtml = `
+                <div class="res-loss">LOSS <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M18 6L6 18M6 6l12 12"/></svg></div>
+                <div class="actual-number">Result: ${s.actual} (${parseInt(s.actual) >= 5 ? 'Big':'Small'})</div>`;
+        } else {
+            resultHtml = `<div class="res-pending">Waiting...</div>`;
+        }
+
+        const div = document.createElement('div');
+        div.className = `sig-card ${index === 0 && !s.status ? 'first-card' : ''}`;
+        div.style.animationDelay = `${delay}s`;
+        
+        div.innerHTML = `
+            <div class="sig-top">
+                <span class="sig-period">Period: ${s.period} ${index === 0 && !s.status ? '<span class="badge-next">Next</span>' : ''}</span>
+                <span class="sig-time">API Sync</span>
+            </div>
+            <div class="sig-middle">
+                <div class="sig-pred-box">
+                    <span class="sig-pred-label">Prediction</span>
+                    <span class="sig-pred-val ${isBig ? 'big':'small'}">${s.signal}</span>
+                </div>
+                <div class="sig-vs">VS</div>
+                <div class="sig-res-box">
+                    <span class="sig-res-label">Actual Result</span>
+                    ${resultHtml}
+                </div>
+            </div>
+        `;
+        listContainer.appendChild(div);
+    });
+}
+
+function startAutoCheck() {
+    if(checkInterval) clearInterval(checkInterval);
+    checkInterval = setInterval(async () => {
+        const savedData = localStorage.getItem(STORAGE_KEY);
+        if (!savedData) return;
+        
+        let signals = JSON.parse(savedData);
+        if (signals.every(s => s.status)) {
+            clearInterval(checkInterval);
+            return;
+        }
+
+        try {
+            const { data } = await supabaseClient.from('wingo_history').select('issue, number').eq('game', 'WinGo_30S').order('id', {ascending: false}).limit(50);
+            if (!data) return;
+
+            let updated = false;
+            signals.forEach(s => {
+                if (!s.status) {
+                    const match = data.find(h => h.issue === s.period);
+                    if (match) {
+                        const actualResult = parseInt(match.number) >= 5 ? 'BIG' : 'SMALL';
+                        s.status = (s.signal === actualResult) ? 'WIN' : 'LOSS';
+                        s.actual = match.number; // Store actual number
+                        updated = true;
+                    }
+                }
+            });
+
+            if (updated) {
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(signals));
+                renderSignals(signals);
+                checkGenerateButtonUnlock(signals);
+            }
+        } catch (e) {}
+    }, 5000);
+}
+
+function checkGenerateButtonUnlock(signals) {
+    const completed = signals.filter(s => s.status).length;
+    const threshold = Math.ceil(signals.length * 0.8); // 80% done
+
+    if (completed >= threshold) {
+        document.getElementById('btn-container').style.display = 'block';
+        document.getElementById('selector-container').style.display = 'block';
+        document.getElementById('selector-container').style.opacity = '1';
+        document.querySelectorAll('#count-selector button').forEach(b => b.disabled = false);
+        
+        const btn = document.getElementById('generate-btn');
+        btn.disabled = false;
+        btn.innerHTML = `Generate New Signals`;
+    }
+}
+
+function resetButton() {
+    const btn = document.getElementById('generate-btn');
+    btn.disabled = false;
+    btn.innerHTML = `Try Again`;
+    document.getElementById('selector-container').style.opacity = '1';
+    document.querySelectorAll('#count-selector button').forEach(b => b.disabled = false);
+}
+</script>
+</body>
+</html>
